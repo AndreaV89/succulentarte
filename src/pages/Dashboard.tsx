@@ -1,7 +1,7 @@
 import Box from "@mui/material/Box";
 
-const Indice = () => {
+const Dashboard = () => {
   return <Box sx={{ flexGrow: 1, mt: "130px", mb: "50px" }}></Box>;
 };
 
-export default Indice;
+export default Dashboard;

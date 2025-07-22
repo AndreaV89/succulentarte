@@ -1,5 +1,10 @@
 import React from "react";
-import { Typography, Link, Box, TextField, Button, Grid } from "@mui/material";
+import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Link from "@mui/material/Link";
+import TextField from "@mui/material/TextField";
+import Grid from "@mui/material/Grid";
 import SendIcon from "@mui/icons-material/Send";
 
 const Contatti = () => {
@@ -83,7 +88,6 @@ const Contatti = () => {
                 label="Messaggio"
                 multiline
                 rows={8}
-                maxRows={Infinity}
                 sx={{ width: "100%" }}
               />
             </Box>

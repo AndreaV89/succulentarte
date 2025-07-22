@@ -1,44 +1,28 @@
-import { useState, type JSX } from "react";
+import { useState, useEffect, type JSX } from "react";
 import { styled, alpha } from "@mui/material/styles";
-import {
-  AppBar,
-  Box,
-  Toolbar,
-  IconButton,
-  Menu,
-  Container,
-  Button,
-  MenuItem,
-  Divider,
-  InputBase,
-  Modal,
-  TextField,
-} from "@mui/material";
+import AppBar from "@mui/material/AppBar";
+import Box from "@mui/material/Box";
+import Toolbar from "@mui/material/Toolbar";
+import IconButton from "@mui/material/IconButton";
+import Menu from "@mui/material/Menu";
+import Container from "@mui/material/Container";
+import Button from "@mui/material/Button";
+import MenuItem from "@mui/material/MenuItem";
+import Divider from "@mui/material/Divider";
+import InputBase from "@mui/material/InputBase";
 import MenuIcon from "@mui/icons-material/Menu";
-import AccountCircle from "@mui/icons-material/AccountCircle";
 import SearchIcon from "@mui/icons-material/Search";
+import Typography from "@mui/material/Typography";
 
 const pages = ["Catalogo", "Indice", "Contatti"];
 
-const ModalStyle = {
-  position: "absolute",
-  top: "50%",
-  left: "50%",
-  transform: "translate(-50%, -50%)",
-  width: 400,
-  color: "black",
-  bgcolor: "background.paper",
-  border: "2px solid #000",
-  boxShadow: 24,
-  p: 4,
-};
-
 const Search = styled("div")(({ theme }) => ({
   position: "relative",
-  borderRadius: theme.shape.borderRadius,
-  backgroundColor: alpha(theme.palette.common.white, 0.15),
+  borderRadius: 30,
+  backgroundColor: alpha(theme.palette.common.white, 0.18),
+  boxShadow: "0 2px 8px rgba(0,0,0,0.07)",
   "&:hover": {
-    backgroundColor: alpha(theme.palette.common.white, 0.25),
+    backgroundColor: alpha(theme.palette.common.white, 0.28),
   },
   marginLeft: 0,
   width: "100%",
@@ -75,69 +59,50 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
   },
 }));
 
-const ResponsiveAppBar = (): JSX.Element => {
-  const [openModal, setOpenModal] = useState(false);
-  const [user, setUser] = useState("");
-  const [password, setPassword] = useState("");
-  const [anchorElNav, setAnchorElNav] = useState(null);
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [auth, setAuth] = useState(true);
+const Header = (): JSX.Element => {
+  const [anchorElNav, setAnchorElNav] = useState<HTMLButtonElement | null>(
+    null
+  );
+  const [scrolled, setScrolled] = useState(false);
 
-  const userProva = "userProva";
-  const pswProva = "pswProva";
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 30);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
-  const handleOpenModal = () => {
-    setOpenModal(true);
-    handleCloseLoginMenu();
-  };
-
-  const handleCloseModal = () => setOpenModal(false);
-
-  const handleLogout = () => {
-    handleCloseLoginMenu();
-    setAuth(false);
-  };
-
-  const handleOpenNavMenu = (event) => {
+  const handleOpenNavMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorElNav(event.currentTarget);
+    console.log(event.currentTarget);
   };
 
-  const handleCloseNavMenu = (event) => {
+  const handleCloseNavMenu = () => {
     setAnchorElNav(null);
-  };
-
-  const handleOpenLoginMenu = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleCloseLoginMenu = () => {
-    setAnchorEl(null);
-  };
-
-  const handleSubmit = () => {
-    if (user === userProva && password === pswProva) {
-      setAuth(true);
-      setUser("");
-      setPassword("");
-    }
-    handleCloseModal();
   };
 
   return (
     <AppBar
-      position="fixed"
+      position={scrolled ? "fixed" : "fixed"}
       sx={{
-        top: "30px",
-        width: "90%",
+        top: scrolled ? 0 : "30px",
+        width: scrolled ? "100%" : "90%",
         left: "50%",
-        transform: "translate(-50%, 0)",
-        borderRadius: "10px",
-        backgroundColor: "#018732",
+        transform: scrolled ? "translate(-50%, 0)" : "translate(-50%, 0)",
+        borderRadius: scrolled ? 0 : "10px",
+        background: "linear-gradient(90deg, #018732 0%, #00b86b 100%)",
+        boxShadow: "0 4px 24px rgba(0, 0, 0, 0.4)",
+        transition: "all 0.3s cubic-bezier(.4,2,.6,1)",
+        zIndex: 1300,
       }}
     >
       <Container maxWidth={false}>
-        <Toolbar disableGutters>
-          {/* Menu meno di 900px wide */}
+        <Toolbar
+          disableGutters
+          sx={{ position: "relative", minHeight: "70px" }}
+        >
+          {/* Menu mobile */}
           <Box sx={{ flexGrow: 1, display: { xs: "flex", md: "none" } }}>
             <IconButton
               size="large"
@@ -183,7 +148,7 @@ const ResponsiveAppBar = (): JSX.Element => {
             </Menu>
           </Box>
 
-          {/* Menu oltre 900px wide */}
+          {/* Menu desktop */}
           <Box sx={{ flexGrow: 1, display: { xs: "none", md: "flex" } }}>
             {pages.map((page) => (
               <Button
@@ -201,6 +166,28 @@ const ResponsiveAppBar = (): JSX.Element => {
             ))}
           </Box>
 
+          {/* Titolo Centrale */}
+          <Typography
+            variant="h5"
+            noWrap
+            component="a"
+            href="/"
+            sx={{
+              position: "absolute",
+              left: "50%",
+              top: "50%",
+              transform: "translate(-50%, -50%)",
+              fontWeight: 700,
+              letterSpacing: ".2rem",
+              color: "white",
+              textDecoration: "none",
+              zIndex: 10,
+              display: { xs: "none", lg: "flex" },
+              pointerEvents: "auto",
+            }}
+          >
+            SucculentArte
+          </Typography>
           {/* Search Input */}
           <Search>
             <SearchIconWrapper>
@@ -223,95 +210,19 @@ const ResponsiveAppBar = (): JSX.Element => {
           />
 
           {/* Icona Profilo */}
-          {
-            <div>
-              <IconButton
-                size="large"
-                aria-label="account of current user"
-                aria-controls="menu-appbar"
-                aria-haspopup="true"
-                onClick={handleOpenLoginMenu}
-                color="inherit"
-              >
-                <AccountCircle />
-              </IconButton>
-              <Menu
-                id="menu-appbar"
-                anchorEl={anchorEl}
-                anchorOrigin={{
-                  vertical: "bottom",
-                  horizontal: "right",
-                }}
-                keepMounted
-                transformOrigin={{
-                  vertical: "top",
-                  horizontal: "right",
-                }}
-                open={Boolean(anchorEl)}
-                onClose={handleCloseLoginMenu}
-              >
-                {/* Menu Icona Profilo */}
-                {auth ? (
-                  <div>
-                    <MenuItem component="a" href="/dashboard">
-                      Dashboard
-                    </MenuItem>
-                    <MenuItem component="a" onClick={handleLogout}>
-                      Logout
-                    </MenuItem>
-                  </div>
-                ) : (
-                  <MenuItem onClick={handleOpenModal}>Login</MenuItem>
-                )}
-
-                {/* Modal Login */}
-                <Modal open={openModal} onClose={handleCloseModal}>
-                  <Box sx={ModalStyle}>
-                    <Box
-                      component="form"
-                      onSubmit={handleSubmit}
-                      noValidate
-                      sx={{ mt: 1 }}
-                    >
-                      <TextField
-                        value={user}
-                        name="username"
-                        type="email"
-                        onChange={(e) => setUser(e.target.value)}
-                        placeholder="Enter username"
-                        label="username"
-                        fullWidth
-                        required
-                        autoFocus
-                        sx={{ mb: 2 }}
-                      ></TextField>
-                      <TextField
-                        value={password}
-                        name="password"
-                        type="password"
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Enter password"
-                        label="password"
-                        fullWidth
-                        required
-                      ></TextField>
-                      <Button
-                        type="submit"
-                        variant="contained"
-                        fullWidth
-                        sx={{ mt: 1 }}
-                      >
-                        Sign In
-                      </Button>
-                    </Box>
-                  </Box>
-                </Modal>
-              </Menu>
-            </div>
-          }
+          <Button
+            href="/dashboard"
+            sx={{
+              my: 2,
+              color: "white",
+              display: "block",
+            }}
+          >
+            Dashboard
+          </Button>
         </Toolbar>
       </Container>
     </AppBar>
   );
 };
-export default ResponsiveAppBar;
+export default Header;

@@ -1,7 +1,10 @@
+// React
 import { Navigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import CircularProgress from "@mui/material/CircularProgress";
+import { useAuth } from "../hooks/useAuth";
 import type { JSX } from "react";
+
+// MUI
+import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
 
 export default function ProtectedRoute({
@@ -29,5 +32,3 @@ export default function ProtectedRoute({
 
   return isLoggedIn ? children : <Navigate to="/login" replace />;
 }
-
-<Box sx={{ flexGrow: 1, mt: "130px", mb: "50px" }}></Box>;

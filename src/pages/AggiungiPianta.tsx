@@ -8,10 +8,15 @@ import Alert from "@mui/material/Alert";
 import IconButton from "@mui/material/IconButton";
 import CloseIcon from "@mui/icons-material/Close";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import InputLabel from "@mui/material/InputLabel";
+import FormControl from "@mui/material/FormControl";
 import { db } from "../../firebaseConfig";
 import {
   doc,
   getDoc,
+  getDocs,
   addDoc,
   collection,
   updateDoc,
@@ -44,6 +49,18 @@ const AggiungiPianta = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [famiglie, setFamiglie] = useState<string[]>([]);
+  const [generi, setGeneri] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchCategorie = async () => {
+      const famSnap = await getDocs(collection(db, "famiglie"));
+      setFamiglie(famSnap.docs.map((doc) => doc.data().nome));
+      const genSnap = await getDocs(collection(db, "generi"));
+      setGeneri(genSnap.docs.map((doc) => doc.data().nome));
+    };
+    fetchCategorie();
+  }, []);
 
   useEffect(() => {
     if (id) {
@@ -217,22 +234,45 @@ const AggiungiPianta = () => {
           sx={{ mb: 2 }}
         />
 
-        <TextField
-          label="Famiglia"
-          value={famiglia}
-          onChange={(e) => setFamiglia(e.target.value)}
-          fullWidth
-          required
-          sx={{ mb: 2 }}
-        />
-        <TextField
-          label="Genere"
-          value={genere}
-          onChange={(e) => setGenere(e.target.value)}
-          fullWidth
-          required
-          sx={{ mb: 2 }}
-        />
+        <FormControl fullWidth required sx={{ mb: 2 }}>
+          <InputLabel id="famiglia-label">Famiglia</InputLabel>
+          <Select
+            labelId="famiglia-label"
+            value={famiglia}
+            label="Famiglia"
+            onChange={(e) => setFamiglia(e.target.value)}
+            sx={{ textAlign: "left" }}
+          >
+            <MenuItem disabled value="">
+              <em>Seleziona famiglia</em>
+            </MenuItem>
+            {famiglie.map((f) => (
+              <MenuItem key={f} value={f}>
+                {f}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl fullWidth required sx={{ mb: 2 }}>
+          <InputLabel id="genere-label">Genere</InputLabel>
+          <Select
+            labelId="genere-label"
+            value={genere}
+            label="Genere"
+            onChange={(e) => setGenere(e.target.value)}
+            sx={{ textAlign: "left" }}
+          >
+            <MenuItem disabled value="">
+              <em>Seleziona genere</em>
+            </MenuItem>
+            {generi.map((g) => (
+              <MenuItem key={g} value={g}>
+                {g}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
         <TextField
           label="Sinonimi"
           value={sinonimi}

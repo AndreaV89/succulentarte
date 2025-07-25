@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+
+// Firebase
 import { db } from "../../firebaseConfig";
 import {
   collection,
@@ -10,6 +12,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 
+// MUI
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
@@ -28,6 +31,8 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import EditIcon from "@mui/icons-material/Edit";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
 
 const Categorie = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -35,6 +40,7 @@ const Categorie = () => {
     null
   );
   const [deleteName, setDeleteName] = useState<string | null>(null);
+
   // Famiglie
   const [famiglie, setFamiglie] = useState<
     { nome: string; descrizione: string }[]
@@ -47,82 +53,89 @@ const Categorie = () => {
   } | null>(null);
 
   // Generi
-  const [generi, setGeneri] = useState<{ nome: string; descrizione: string }[]>(
-    []
-  );
+  const [generi, setGeneri] = useState<
+    { nome: string; descrizione: string; famiglia: string }[]
+  >([]);
   const [genereNome, setGenereNome] = useState("");
   const [genereDescrizione, setGenereDescrizione] = useState("");
-
-  // Sostituisci showFamigliaForm/showGenereForm con showFamigliaModal/showGenereModal
-  const [showFamigliaModal, setShowFamigliaModal] = useState(false);
-  const [showGenereModal, setShowGenereModal] = useState(false);
+  const [genereFamiglia, setGenereFamiglia] = useState("");
   const [genereEdit, setGenereEdit] = useState<{
     nome: string;
     descrizione: string;
+    famiglia: string;
   } | null>(null);
 
+  // Modali
+  const [showFamigliaModal, setShowFamigliaModal] = useState(false);
+  const [showGenereModal, setShowGenereModal] = useState(false);
+
   // Carica famiglie e generi da Firestore
+  const fetchData = async () => {
+    const famSnap = await getDocs(collection(db, "famiglie"));
+    setFamiglie(
+      famSnap.docs.map((doc) => ({
+        nome: doc.data().nome,
+        descrizione: doc.data().descrizione || "",
+      }))
+    );
+    const genSnap = await getDocs(collection(db, "generi"));
+    setGeneri(
+      genSnap.docs.map((doc) => ({
+        nome: doc.data().nome,
+        descrizione: doc.data().descrizione || "",
+        famiglia: doc.data().famiglia || "",
+      }))
+    );
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      const famSnap = await getDocs(collection(db, "famiglie"));
-      setFamiglie(
-        famSnap.docs.map((doc) => ({
-          nome: doc.data().nome,
-          descrizione: doc.data().descrizione || "",
-        }))
-      );
-      const genSnap = await getDocs(collection(db, "generi"));
-      setGeneri(
-        genSnap.docs.map((doc) => ({
-          nome: doc.data().nome,
-          descrizione: doc.data().descrizione || "",
-        }))
-      );
-    };
     fetchData();
   }, []);
 
-  // Aggiungi famiglia
-  const handleAggiungiFamiglia = async () => {
-    if (!famigliaNome.trim()) return;
-    if (famigliaEdit) {
-      // Modifica
-      const snap = await getDocs(collection(db, "famiglie"));
-      const docToUpdate = snap.docs.find(
-        (d) => d.data().nome === famigliaEdit.nome
-      );
-      if (docToUpdate) {
-        await updateDoc(doc(db, "famiglie", docToUpdate.id), {
-          nome: famigliaNome.trim(),
-          descrizione: famigliaDescrizione.trim(),
-        });
-        setFamiglie((prev) =>
-          prev.map((f) =>
-            f.nome === famigliaEdit.nome
-              ? {
-                  nome: famigliaNome.trim(),
-                  descrizione: famigliaDescrizione.trim(),
-                }
-              : f
-          )
-        );
-      }
-    } else {
-      // Nuova
-      await addDoc(collection(db, "famiglie"), {
-        nome: famigliaNome.trim(),
-        descrizione: famigliaDescrizione.trim(),
-        createdAt: serverTimestamp(),
-      });
-      setFamiglie((prev) => [
-        ...prev,
-        { nome: famigliaNome.trim(), descrizione: famigliaDescrizione.trim() },
-      ]);
-    }
+  // Reset modali
+  const resetFamigliaForm = () => {
+    setFamigliaEdit(null);
     setFamigliaNome("");
     setFamigliaDescrizione("");
-    setFamigliaEdit(null);
     setShowFamigliaModal(false);
+  };
+  const resetGenereForm = () => {
+    setGenereEdit(null);
+    setGenereNome("");
+    setGenereDescrizione("");
+    setGenereFamiglia("");
+    setShowGenereModal(false);
+  };
+
+  // Aggiungi/modifica famiglia
+  const handleAggiungiFamiglia = async () => {
+    if (!famigliaNome.trim()) return;
+    try {
+      if (famigliaEdit) {
+        // Modifica
+        const snap = await getDocs(collection(db, "famiglie"));
+        const docToUpdate = snap.docs.find(
+          (d) => d.data().nome === famigliaEdit.nome
+        );
+        if (docToUpdate) {
+          await updateDoc(doc(db, "famiglie", docToUpdate.id), {
+            nome: famigliaNome.trim(),
+            descrizione: famigliaDescrizione.trim(),
+          });
+        }
+      } else {
+        // Nuova
+        await addDoc(collection(db, "famiglie"), {
+          nome: famigliaNome.trim(),
+          descrizione: famigliaDescrizione.trim(),
+          createdAt: serverTimestamp(),
+        });
+      }
+      await fetchData();
+      resetFamigliaForm();
+    } catch (err) {
+      alert("Errore: " + err);
+    }
   };
 
   // Modifica famiglia
@@ -136,101 +149,88 @@ const Categorie = () => {
     setShowFamigliaModal(true);
   };
 
-  // Aggiungi genere
+  // Aggiungi/modifica genere
   const handleAggiungiGenere = async () => {
-    if (!genereNome.trim()) return;
-    if (genereEdit) {
-      // Modifica
-      const snap = await getDocs(collection(db, "generi"));
-      const docToUpdate = snap.docs.find(
-        (d) => d.data().nome === genereEdit.nome
-      );
-      if (docToUpdate) {
-        await updateDoc(doc(db, "generi", docToUpdate.id), {
+    if (!genereNome.trim() || !genereFamiglia) return;
+    try {
+      if (genereEdit) {
+        // Modifica
+        const snap = await getDocs(collection(db, "generi"));
+        const docToUpdate = snap.docs.find(
+          (d) => d.data().nome === genereEdit.nome
+        );
+        if (docToUpdate) {
+          await updateDoc(doc(db, "generi", docToUpdate.id), {
+            nome: genereNome.trim(),
+            descrizione: genereDescrizione.trim(),
+            famiglia: genereFamiglia,
+          });
+        }
+      } else {
+        // Nuovo
+        await addDoc(collection(db, "generi"), {
           nome: genereNome.trim(),
           descrizione: genereDescrizione.trim(),
+          famiglia: genereFamiglia,
+          createdAt: serverTimestamp(),
         });
-
-        setGeneri((prev) =>
-          prev.map((g) =>
-            g.nome === genereEdit.nome
-              ? {
-                  nome: genereNome.trim(),
-                  descrizione: genereDescrizione.trim(),
-                }
-              : g
-          )
-        );
       }
-    } else {
-      // Nuovo
-      await addDoc(collection(db, "generi"), {
-        nome: genereNome.trim(),
-        descrizione: genereDescrizione.trim(),
-        createdAt: serverTimestamp(),
-      });
-      setGeneri((prev) => [
-        ...prev,
-        { nome: genereNome.trim(), descrizione: genereDescrizione.trim() },
-      ]);
+      await fetchData();
+      resetGenereForm();
+    } catch (err) {
+      alert("Errore: " + err);
     }
-    setGenereNome("");
-    setGenereDescrizione("");
-    setGenereEdit(null);
-    setShowGenereModal(false);
   };
 
   // Modifica genere
   const handleModificaGenere = (genere: {
     nome: string;
     descrizione: string;
+    famiglia: string;
   }) => {
     setGenereEdit(genere);
     setGenereNome(genere.nome);
     setGenereDescrizione(genere.descrizione);
+    setGenereFamiglia(genere.famiglia || "");
     setShowGenereModal(true);
   };
 
   // Elimina famiglia
   const handleRimuoviFamiglia = async (nome: string) => {
-    const snap = await getDocs(collection(db, "famiglie"));
-    const docToDelete = snap.docs.find((d) => d.data().nome === nome);
-    if (docToDelete) {
-      await deleteDoc(doc(db, "famiglie", docToDelete.id));
-      setFamiglie((prev) => prev.filter((f) => f.nome !== nome));
+    try {
+      const snap = await getDocs(collection(db, "famiglie"));
+      const docToDelete = snap.docs.find((d) => d.data().nome === nome);
+      if (docToDelete) {
+        await deleteDoc(doc(db, "famiglie", docToDelete.id));
+        await fetchData();
+      }
+    } catch (err) {
+      alert("Errore: " + err);
     }
   };
 
   // Elimina genere
   const handleRimuoviGenere = async (nome: string) => {
-    const snap = await getDocs(collection(db, "generi"));
-    const docToDelete = snap.docs.find((d) => d.data().nome === nome);
-    if (docToDelete) {
-      await deleteDoc(doc(db, "generi", docToDelete.id));
-      setGeneri((prev) => prev.filter((g) => g.nome !== nome));
+    try {
+      const snap = await getDocs(collection(db, "generi"));
+      const docToDelete = snap.docs.find((d) => d.data().nome === nome);
+      if (docToDelete) {
+        await deleteDoc(doc(db, "generi", docToDelete.id));
+        await fetchData();
+      }
+    } catch (err) {
+      alert("Errore: " + err);
     }
   };
 
-  const handleCloseFamigliaModal = () => {
-    setShowFamigliaModal(false);
-    setFamigliaEdit(null);
-    setFamigliaNome("");
-    setFamigliaDescrizione("");
-  };
-
-  const handleCloseGenereModal = () => {
-    setShowGenereModal(false);
-    setGenereEdit(null);
-    setGenereNome("");
-    setGenereDescrizione("");
-  };
-
+  // Modal di conferma eliminazione genere/famiglia
   const askDelete = (type: "famiglia" | "genere", name: string) => {
     setDeleteType(type);
     setDeleteName(name);
     setConfirmOpen(true);
   };
 
+  // Gestisce l'eliminazione di generi/famiglie
   const handleConfirmDelete = async () => {
     if (deleteType === "famiglia" && deleteName) {
       await handleRimuoviFamiglia(deleteName);
@@ -248,9 +248,10 @@ const Categorie = () => {
       sx={{
         mt: "130px",
         mb: "50px",
-        maxWidth: 1600, // aumentato da 1300 a 1600
+        maxWidth: 1600,
         mx: "auto",
         p: { xs: 2, md: 4 },
+        flexGrow: 1,
       }}
     >
       <Typography variant="h4" sx={{ mb: 5 }}>
@@ -291,9 +292,14 @@ const Categorie = () => {
                 <TableCell sx={{ width: 60, py: 2 }}>
                   <Button
                     variant="contained"
-                    color="primary"
+                    sx={{
+                      background: "#FFC107",
+                      color: "#222",
+                      "&:hover": { background: "#ffb300" },
+                    }}
                     size="small"
                     onClick={() => setShowFamigliaModal(true)}
+                    aria-label="Aggiungi famiglia"
                   >
                     +
                   </Button>
@@ -309,9 +315,14 @@ const Categorie = () => {
                 <TableCell sx={{ width: 60, py: 2 }}>
                   <Button
                     variant="contained"
-                    color="secondary"
+                    sx={{
+                      background: "#FFC107",
+                      color: "#222",
+                      "&:hover": { background: "#ffb300" },
+                    }}
                     size="small"
                     onClick={() => setShowGenereModal(true)}
+                    aria-label="Aggiungi genere"
                   >
                     +
                   </Button>
@@ -343,6 +354,7 @@ const Categorie = () => {
                           <IconButton
                             size="small"
                             color="primary"
+                            aria-label="Modifica famiglia"
                             onClick={() =>
                               handleModificaFamiglia(famiglie[idx])
                             }
@@ -352,6 +364,7 @@ const Categorie = () => {
                           <IconButton
                             size="small"
                             color="error"
+                            aria-label="Elimina famiglia"
                             onClick={() =>
                               askDelete("famiglia", famiglie[idx].nome)
                             }
@@ -403,6 +416,7 @@ const Categorie = () => {
                           <IconButton
                             size="small"
                             color="primary"
+                            aria-label="Modifica genere"
                             onClick={() => handleModificaGenere(generi[idx])}
                           >
                             <EditIcon />
@@ -410,6 +424,7 @@ const Categorie = () => {
                           <IconButton
                             size="small"
                             color="error"
+                            aria-label="Elimina genere"
                             onClick={() =>
                               askDelete("genere", generi[idx].nome)
                             }
@@ -452,9 +467,11 @@ const Categorie = () => {
         maxWidth="sm"
         fullWidth
         open={showFamigliaModal}
-        onClose={handleCloseFamigliaModal}
+        onClose={resetFamigliaForm}
       >
-        <DialogTitle>Aggiungi famiglia</DialogTitle>
+        <DialogTitle>
+          {famigliaEdit ? "Modifica famiglia" : "Aggiungi famiglia"}
+        </DialogTitle>
         <DialogContent>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
             <TextField
@@ -475,10 +492,14 @@ const Categorie = () => {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setShowFamigliaModal(false)}>Annulla</Button>
+          <Button onClick={resetFamigliaForm}>Annulla</Button>
           <Button
             variant="contained"
-            color="primary"
+            sx={{
+              background: "#FFC107",
+              color: "#222",
+              "&:hover": { background: "#ffb300" },
+            }}
             onClick={handleAggiungiFamiglia}
             disabled={!famigliaNome.trim()}
           >
@@ -492,9 +513,11 @@ const Categorie = () => {
         maxWidth="sm"
         fullWidth
         open={showGenereModal}
-        onClose={handleCloseGenereModal}
+        onClose={resetGenereForm}
       >
-        <DialogTitle>Aggiungi genere</DialogTitle>
+        <DialogTitle>
+          {genereEdit ? "Modifica genere" : "Aggiungi genere"}
+        </DialogTitle>
         <DialogContent>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
             <TextField
@@ -512,20 +535,41 @@ const Categorie = () => {
               multiline
               minRows={6}
             />
+            <Select
+              value={genereFamiglia}
+              onChange={(e) => setGenereFamiglia(e.target.value)}
+              size="small"
+              sx={{ mt: 2 }}
+              displayEmpty
+            >
+              <MenuItem value="">
+                <em>Seleziona famiglia</em>
+              </MenuItem>
+              {famiglie.map((f) => (
+                <MenuItem key={f.nome} value={f.nome}>
+                  {f.nome}
+                </MenuItem>
+              ))}
+            </Select>
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setShowGenereModal(false)}>Annulla</Button>
+          <Button onClick={resetGenereForm}>Annulla</Button>
           <Button
             variant="contained"
-            color="secondary"
+            sx={{
+              background: "#FFC107",
+              color: "#222",
+              "&:hover": { background: "#ffb300" },
+            }}
             onClick={handleAggiungiGenere}
-            disabled={!genereNome.trim()}
+            disabled={!genereNome.trim() || !genereFamiglia}
           >
             Salva
           </Button>
         </DialogActions>
       </Dialog>
+
       {/* MODAL CONFERMA ELIMINAZIONE */}
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
         <DialogTitle>Conferma eliminazione</DialogTitle>

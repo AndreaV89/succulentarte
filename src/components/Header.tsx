@@ -1,4 +1,8 @@
+// React
 import { useState, useEffect, type JSX } from "react";
+import { Link } from "react-router-dom";
+
+// MUI
 import { styled, alpha } from "@mui/material/styles";
 import AppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
@@ -14,7 +18,11 @@ import MenuIcon from "@mui/icons-material/Menu";
 import SearchIcon from "@mui/icons-material/Search";
 import Typography from "@mui/material/Typography";
 
-const pages = ["Catalogo", "Indice", "Contatti"];
+const pages = [
+  { label: "Catalogo", to: "/" },
+  { label: "Indice", to: "/indice" },
+  { label: "Contatti", to: "/contatti" },
+];
 
 const Search = styled("div")(({ theme }) => ({
   position: "relative",
@@ -47,7 +55,6 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
   width: "100%",
   "& .MuiInputBase-input": {
     padding: theme.spacing(1, 1, 1, 0),
-    // vertical padding + font size from searchIcon
     paddingLeft: `calc(1em + ${theme.spacing(4)})`,
     transition: theme.transitions.create("width"),
     [theme.breakpoints.up("sm")]: {
@@ -60,9 +67,7 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
 }));
 
 const Header = (): JSX.Element => {
-  const [anchorElNav, setAnchorElNav] = useState<HTMLButtonElement | null>(
-    null
-  );
+  const [anchorElNav, setAnchorElNav] = useState<null | HTMLElement>(null);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -75,7 +80,6 @@ const Header = (): JSX.Element => {
 
   const handleOpenNavMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorElNav(event.currentTarget);
-    console.log(event.currentTarget);
   };
 
   const handleCloseNavMenu = () => {
@@ -84,12 +88,12 @@ const Header = (): JSX.Element => {
 
   return (
     <AppBar
-      position={scrolled ? "fixed" : "fixed"}
+      position="fixed"
       sx={{
         top: scrolled ? 0 : "30px",
         width: scrolled ? "100%" : "90%",
         left: "50%",
-        transform: scrolled ? "translate(-50%, 0)" : "translate(-50%, 0)",
+        transform: "translate(-50%, 0)",
         borderRadius: scrolled ? 0 : "10px",
         background: "linear-gradient(90deg, #018732 0%, #00b86b 100%)",
         boxShadow: "0 4px 24px rgba(0, 0, 0, 0.4)",
@@ -106,7 +110,7 @@ const Header = (): JSX.Element => {
           <Box sx={{ flexGrow: 1, display: { xs: "flex", md: "none" } }}>
             <IconButton
               size="large"
-              aria-label="account of current user"
+              aria-label="menu"
               aria-controls="menu-appbar"
               aria-haspopup="true"
               onClick={handleOpenNavMenu}
@@ -132,36 +136,41 @@ const Header = (): JSX.Element => {
             >
               {pages.map((page) => (
                 <MenuItem
-                  component="a"
-                  key={page}
-                  href={page === "Catalogo" ? "/" : page}
+                  component={Link}
+                  key={page.label}
+                  to={page.to}
                   onClick={handleCloseNavMenu}
                   sx={{
                     my: 1,
                     color: "black",
                     display: "block",
+                    "&:hover": { color: "#FFC107" },
                   }}
                 >
-                  {page}
+                  {page.label}
                 </MenuItem>
               ))}
             </Menu>
           </Box>
 
           {/* Menu desktop */}
-          <Box sx={{ flexGrow: 1, display: { xs: "none", md: "flex" } }}>
+          <Box
+            sx={{ flexGrow: 1, display: { xs: "none", md: "flex" }, gap: 3 }}
+          >
             {pages.map((page) => (
               <Button
-                href={page === "Catalogo" ? "/" : page}
-                key={page}
+                component={Link}
+                to={page.to}
+                key={page.label}
                 sx={{
                   my: 2,
                   color: "white",
                   display: "block",
-                  marginRight: "50px",
+                  "&:hover": { color: "#FFC107" },
                 }}
+                aria-label={page.label}
               >
-                {page}
+                {page.label}
               </Button>
             ))}
           </Box>
@@ -170,8 +179,8 @@ const Header = (): JSX.Element => {
           <Typography
             variant="h5"
             noWrap
-            component="a"
-            href="/"
+            component={Link}
+            to="/"
             sx={{
               position: "absolute",
               left: "50%",
@@ -194,7 +203,7 @@ const Header = (): JSX.Element => {
               <SearchIcon />
             </SearchIconWrapper>
             <StyledInputBase
-              placeholder="Search…"
+              placeholder="Cerca…"
               inputProps={{ "aria-label": "search" }}
             />
           </Search>
@@ -211,12 +220,15 @@ const Header = (): JSX.Element => {
 
           {/* Icona Profilo */}
           <Button
-            href="/dashboard"
+            component={Link}
+            to="/dashboard"
             sx={{
               my: 2,
               color: "white",
               display: "block",
+              "&:hover": { color: "#FFC107" },
             }}
+            aria-label="Dashboard"
           >
             Dashboard
           </Button>

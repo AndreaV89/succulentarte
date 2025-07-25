@@ -14,6 +14,9 @@ import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import type { DataSingle } from "../types/general";
 
+import Breadcrumbs from "@mui/material/Breadcrumbs";
+import Link from "@mui/material/Link";
+
 const Pianta = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -126,8 +129,36 @@ const Pianta = () => {
           ></Box>
         </Button>
       </Box>
+
       {/* Titolo */}
       <Box sx={{ maxWidth: 900, mx: "auto", mt: 6, px: 2 }}>
+        <Breadcrumbs sx={{ mb: 2 }}>
+          <Link
+            sx={{ cursor: "pointer" }}
+            underline="hover"
+            color="inherit"
+            onClick={() => navigate("/")}
+          >
+            Home
+          </Link>
+          <Link
+            sx={{ cursor: "pointer" }}
+            underline="hover"
+            color="inherit"
+            onClick={() => navigate(`/catalogo/famiglia/${pianta.famiglia}`)}
+          >
+            {pianta.famiglia}
+          </Link>
+          <Link
+            sx={{ cursor: "pointer" }}
+            underline="hover"
+            color="inherit"
+            onClick={() => navigate(`/catalogo/genere/${pianta.genere}`)}
+          >
+            {pianta.genere}
+          </Link>
+          <Typography color="text.primary">{pianta.specie}</Typography>
+        </Breadcrumbs>
         <Typography
           variant="h2"
           sx={{

@@ -1,9 +1,15 @@
+// React
+import { useNavigate } from "react-router-dom";
+
+// MUI
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import SentimentVeryDissatisfiedIcon from "@mui/icons-material/SentimentVeryDissatisfied";
 
 const NotFound = () => {
+  const navigate = useNavigate();
+
   return (
     <Box
       sx={{
@@ -41,7 +47,7 @@ const NotFound = () => {
         Forse una pianta l'ha mangiata! 🌵
       </Typography>
       <Button
-        href="/"
+        onClick={() => navigate("/")}
         variant="contained"
         color="success"
         size="large"
@@ -51,6 +57,7 @@ const NotFound = () => {
           fontWeight: 700,
           boxShadow: "0 2px 8px rgba(76,175,80,0.15)",
         }}
+        aria-label="Torna alla Home"
       >
         Torna alla Home
       </Button>

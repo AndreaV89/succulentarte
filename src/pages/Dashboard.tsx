@@ -1,8 +1,17 @@
+// React
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
 import { useAuth } from "../hooks/useAuth";
 
+// Firebase
+import { auth } from "../../firebaseConfig";
+import { db } from "../../firebaseConfig";
+import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
+import { getStorage, ref, deleteObject, listAll } from "firebase/storage";
+import type { StorageReference } from "firebase/storage";
+
+// MUI
+import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
@@ -19,14 +28,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 
-import { auth } from "../../firebaseConfig";
-import { db } from "../../firebaseConfig";
-import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
-import { getStorage, ref, deleteObject, listAll } from "firebase/storage";
-import type { StorageReference } from "firebase/storage";
-
 const storage = getStorage();
-
 interface Pianta {
   id: string;
   specie?: string;
@@ -56,6 +58,8 @@ const Dashboard = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Carica le piante dal db
   useEffect(() => {
@@ -112,16 +116,15 @@ const Dashboard = () => {
   };
 
   const handleDelete = async (id: string) => {
-    // Elimina tutte le foto associate dalla cartella Storage (anche sottocartelle)
     try {
       const folderRef = ref(storage, `piante/${id}`);
       await deleteAllFilesInFolder(folderRef);
+      await deleteDoc(doc(db, "piante", id));
+      setPiante((prev) => prev.filter((p) => p.id !== id));
     } catch (err) {
+      setError("Errore durante l'eliminazione della pianta.");
       console.log(err);
     }
-    // Elimina il documento Firestore
-    await deleteDoc(doc(db, "piante", id));
-    setPiante((prev) => prev.filter((p) => p.id !== id));
   };
 
   const handleLogout = () => {
@@ -129,10 +132,6 @@ const Dashboard = () => {
     auth.signOut();
     navigate("/login", { replace: true });
   };
-
-  useEffect(() => {
-    console.log(piante);
-  }, [piante]);
 
   return (
     <Box
@@ -175,6 +174,13 @@ const Dashboard = () => {
       >
         Aggiungi pianta
       </Button>
+      {error && (
+        <Box sx={{ width: "100%", maxWidth: 900, mb: 2 }}>
+          <Alert severity="error" onClose={() => setError(null)}>
+            {error}
+          </Alert>
+        </Box>
+      )}
       <Box sx={{ mt: 2, width: "100%", maxWidth: 900 }}>
         <Typography variant="h6" sx={{ mb: 2 }}>
           Le tue piante:
@@ -258,22 +264,28 @@ const Dashboard = () => {
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
         <DialogTitle>Conferma eliminazione</DialogTitle>
         <DialogContent>
-          <Typography>Sei sicuro di voler eliminare questa pianta?</Typography>
+          <Typography>
+            Sei sicuro di voler eliminare la pianta{" "}
+            <b>{piante.find((p) => p.id === deleteId)?.specie || ""}</b>?
+          </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmOpen(false)}>Annulla</Button>
           <Button
             color="error"
             variant="contained"
+            disabled={deleting}
             onClick={async () => {
               if (deleteId) {
+                setDeleting(true);
                 await handleDelete(deleteId);
+                setDeleting(false);
               }
               setConfirmOpen(false);
               setDeleteId(null);
             }}
           >
-            Elimina
+            {deleting ? "Eliminazione..." : "Elimina"}
           </Button>
         </DialogActions>
       </Dialog>

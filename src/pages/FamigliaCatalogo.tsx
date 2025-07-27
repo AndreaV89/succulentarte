@@ -1,8 +1,13 @@
+// React
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { getDocs, collection, query, where } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
+
+// Firebase
+import { getDocs, collection, query, where } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
+
+// MUI
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Grid from "@mui/material/Grid";
@@ -80,7 +85,11 @@ const FamigliaCatalogo = () => {
         sx={{ maxWidth: "1200px", margin: "auto" }}
         justifyContent="center"
       >
-        {loading ? null : generi.length === 0 ? (
+        {loading ? (
+          <Box sx={{ textAlign: "center", py: 6, color: "#888" }}>
+            Caricamento...
+          </Box>
+        ) : generi.length === 0 ? (
           <Grid size={{ xs: 12 }}>
             <Box sx={{ textAlign: "center", py: 6, color: "#888" }}>
               Nessun genere trovato per questa famiglia.

@@ -1,12 +1,16 @@
+// React
 import { type JSX } from "react";
 import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+
+// Firebase
+import { getDocs, collection } from "firebase/firestore";
+import { db } from "../../firebaseConfig";
+
+// MUI
 import Box from "@mui/material/Box";
 import Grid from "@mui/material/Grid";
 import CardPianta from "../components/CardPianta";
-
-import { useEffect, useState } from "react";
-import { getDocs, collection } from "firebase/firestore";
-import { db } from "../../firebaseConfig"; // Assicurati che il path sia corretto
 
 const Home = (): JSX.Element => {
   const navigate = useNavigate();
@@ -31,7 +35,13 @@ const Home = (): JSX.Element => {
         sx={{ maxWidth: "1200px", margin: "auto" }}
         justifyContent="center"
       >
-        {loading ? null : famiglie.length === 0 ? (
+        {loading ? (
+          <Grid size={{ xs: 12 }}>
+            <Box sx={{ textAlign: "center", py: 6, color: "#888" }}>
+              Caricamento...
+            </Box>
+          </Grid>
+        ) : famiglie.length === 0 ? (
           <Grid size={{ xs: 12 }}>
             <Box sx={{ textAlign: "center", py: 6, color: "#888" }}>
               Nessuna famiglia trovata nel catalogo.

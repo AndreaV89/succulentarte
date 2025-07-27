@@ -1,6 +1,10 @@
 // React
 import { useState, useEffect, type JSX } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+
+// Firestore
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "../../firebaseConfig";
 
 // MUI
 import { styled, alpha } from "@mui/material/styles";
@@ -13,10 +17,20 @@ import Container from "@mui/material/Container";
 import Button from "@mui/material/Button";
 import MenuItem from "@mui/material/MenuItem";
 import Divider from "@mui/material/Divider";
-import InputBase from "@mui/material/InputBase";
 import MenuIcon from "@mui/icons-material/Menu";
-import SearchIcon from "@mui/icons-material/Search";
 import Typography from "@mui/material/Typography";
+import CircularProgress from "@mui/material/CircularProgress";
+import Autocomplete from "@mui/material/Autocomplete";
+import TextField from "@mui/material/TextField";
+import SearchIcon from "@mui/icons-material/Search";
+
+type PlantResult = {
+  id: string;
+  specie: string;
+  genere: string;
+  famiglia: string;
+  label: string;
+};
 
 const pages = [
   { label: "Catalogo", to: "/" },
@@ -26,17 +40,18 @@ const pages = [
 
 const Search = styled("div")(({ theme }) => ({
   position: "relative",
-  borderRadius: 30,
-  backgroundColor: alpha(theme.palette.common.white, 0.18),
-  boxShadow: "0 2px 8px rgba(0,0,0,0.07)",
+  borderRadius: 24,
+  backgroundColor: alpha(theme.palette.common.white, 0.95),
   "&:hover": {
-    backgroundColor: alpha(theme.palette.common.white, 0.28),
+    backgroundColor: alpha(theme.palette.common.white, 1),
+    boxShadow: "0 2px 8px rgba(0,0,0,0.10)",
   },
   marginLeft: 0,
   width: "100%",
+  boxShadow: "0 2px 8px rgba(0,0,0,0.07)",
+  border: "1.5px solid #e0e0e0",
   [theme.breakpoints.up("sm")]: {
-    marginLeft: theme.spacing(1),
-    width: "auto",
+    width: 320,
   },
 }));
 
@@ -48,27 +63,83 @@ const SearchIconWrapper = styled("div")(({ theme }) => ({
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-}));
-
-const StyledInputBase = styled(InputBase)(({ theme }) => ({
-  color: "inherit",
-  width: "100%",
-  "& .MuiInputBase-input": {
-    padding: theme.spacing(1, 1, 1, 0),
-    paddingLeft: `calc(1em + ${theme.spacing(4)})`,
-    transition: theme.transitions.create("width"),
-    [theme.breakpoints.up("sm")]: {
-      width: "12ch",
-      "&:focus": {
-        width: "20ch",
-      },
-    },
-  },
+  color: "#00b86b",
 }));
 
 const Header = (): JSX.Element => {
   const [anchorElNav, setAnchorElNav] = useState<null | HTMLElement>(null);
   const [scrolled, setScrolled] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
+  const [results, setResults] = useState<PlantResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (searchValue.length < 2) {
+      setResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+
+    const fetch = setTimeout(async () => {
+      const col = collection(db, "piante");
+      const searchLower = searchValue.toLowerCase();
+
+      // Query per specie
+      const q1 = query(
+        col,
+        where("specie", ">=", searchValue),
+        where("specie", "<=", searchValue + "\uf8ff")
+      );
+      // Query per genere
+      const q2 = query(
+        col,
+        where("genere", ">=", searchValue),
+        where("genere", "<=", searchValue + "\uf8ff")
+      );
+      // Query per famiglia
+      const q3 = query(
+        col,
+        where("famiglia", ">=", searchValue),
+        where("famiglia", "<=", searchValue + "\uf8ff")
+      );
+
+      const [snap1, snap2, snap3] = await Promise.all([
+        getDocs(q1),
+        getDocs(q2),
+        getDocs(q3),
+      ]);
+
+      // Unisci risultati senza duplicati
+      const allDocs = [...snap1.docs, ...snap2.docs, ...snap3.docs];
+      const unique = Array.from(
+        new Map(allDocs.map((doc) => [doc.id, doc])).values()
+      );
+
+      // Filtro lato client per "contains" e case-insensitive
+      const arr = unique
+        .map((doc) => ({
+          id: doc.id,
+          specie: doc.data().specie,
+          genere: doc.data().genere,
+          famiglia: doc.data().famiglia,
+          label: doc.data().specie || "",
+        }))
+        .filter(
+          (p) =>
+            (p.specie && p.specie.toLowerCase().includes(searchLower)) ||
+            (p.genere && p.genere.toLowerCase().includes(searchLower)) ||
+            (p.famiglia && p.famiglia.toLowerCase().includes(searchLower))
+        );
+
+      setResults(arr.slice(0, 8));
+      setSearching(false);
+      console.log("Risultati ricerca:", arr);
+    }, 300);
+
+    return () => clearTimeout(fetch);
+  }, [searchValue]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -80,6 +151,14 @@ const Header = (): JSX.Element => {
 
   const handleOpenNavMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorElNav(event.currentTarget);
+  };
+
+  const handleResultClick = (id: string) => {
+    navigate(`/pianta/${id}`);
+    setTimeout(() => {
+      setSearchValue("");
+      setResults([]);
+    }, 100); // attende che la navigazione avvenga prima di svuotare il campo
   };
 
   const handleCloseNavMenu = () => {
@@ -198,13 +277,78 @@ const Header = (): JSX.Element => {
             SucculentArte
           </Typography>
           {/* Search Input */}
-          <Search>
+          <Search sx={{ width: 280, minWidth: 200, maxWidth: 350, ml: 2 }}>
             <SearchIconWrapper>
               <SearchIcon />
             </SearchIconWrapper>
-            <StyledInputBase
-              placeholder="Cerca…"
-              inputProps={{ "aria-label": "search" }}
+            <Autocomplete
+              clearOnBlur
+              freeSolo
+              options={results}
+              getOptionLabel={(option) =>
+                typeof option === "string" ? option : option.label || ""
+              }
+              loading={searching}
+              inputValue={searchValue}
+              onInputChange={(_, value) => setSearchValue(value)}
+              onChange={(_, value) => {
+                if (value && typeof value !== "string" && value.id)
+                  handleResultClick(value.id);
+              }}
+              open={
+                searchValue.length >= 2 && (results.length > 0 || searching)
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  placeholder="Cerca…"
+                  variant="standard"
+                  InputProps={{
+                    ...params.InputProps,
+                    disableUnderline: true,
+                    sx: {
+                      pl: 5, // spazio per l'icona
+                      py: 0.5,
+                      borderRadius: 3,
+                      backgroundColor: "transparent",
+                      fontSize: 17,
+                      fontWeight: 500,
+                      color: "#1a2a2a",
+                    },
+                    "aria-label": "search",
+                    autoComplete: "off",
+                    onBlur: (e) => {
+                      setTimeout(() => {
+                        setSearchValue("");
+                        setResults([]);
+                      }, 100);
+                      if (params.inputProps.onBlur)
+                        params.inputProps.onBlur(
+                          e as React.FocusEvent<HTMLInputElement, Element>
+                        );
+                    },
+                  }}
+                  sx={{
+                    width: "100%",
+                    "& .MuiInputBase-input": {
+                      pl: 0,
+                    },
+                  }}
+                />
+              )}
+              renderOption={(props, option) => (
+                <li {...props} key={option.id}>
+                  <Box>
+                    <Typography variant="subtitle2">{option.specie}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {option.genere} – {option.famiglia}
+                    </Typography>
+                  </Box>
+                </li>
+              )}
+              noOptionsText={
+                searching ? <CircularProgress size={20} /> : "Nessun risultato"
+              }
             />
           </Search>
           <Divider

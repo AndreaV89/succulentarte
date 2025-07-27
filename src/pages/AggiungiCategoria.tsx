@@ -1,3 +1,4 @@
+// React
 import { useState, useEffect } from "react";
 
 // Firebase
@@ -254,7 +255,7 @@ const Categorie = () => {
         flexGrow: 1,
       }}
     >
-      <Typography variant="h4" sx={{ mb: 5 }}>
+      <Typography variant="h4" sx={{ mb: 5, textAlign: "center" }}>
         Gestione categorie
       </Typography>
 

@@ -1,10 +1,13 @@
-import { useState } from "react";
-
+// React
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+
+// Firebase
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../firebaseConfig";
 
+// MUI
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
@@ -22,14 +25,19 @@ function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  if (isLoggedIn) {
-    navigate("/dashboard", { replace: true });
-    return null;
-  }
+  useEffect(() => {
+    if (isLoggedIn) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isLoggedIn, navigate]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
+    if (!email || !password) {
+      setError("Inserisci email e password.");
+      return;
+    }
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
@@ -93,6 +101,7 @@ function Login() {
             fullWidth
             required
             autoFocus
+            inputProps={{ "aria-label": "Email" }}
           />
           <TextField
             margin="normal"
@@ -104,6 +113,7 @@ function Login() {
             label="Password"
             fullWidth
             required
+            inputProps={{ "aria-label": "Password" }}
           />
           {error && (
             <Alert severity="error" sx={{ mt: 2 }}>
@@ -116,6 +126,7 @@ function Login() {
             fullWidth
             sx={{ mt: 3, mb: 2, fontWeight: 600 }}
             disabled={loading}
+            aria-label="Accedi"
           >
             {loading ? "Accesso in corso..." : "Accedi"}
           </Button>

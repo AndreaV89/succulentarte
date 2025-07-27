@@ -1,8 +1,13 @@
+// React
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { getDocs, collection, query, where } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
+
+// Firebase
+import { getDocs, collection, query, where } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
+
+// MUI
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Grid from "@mui/material/Grid";
@@ -19,8 +24,10 @@ const GenereCatalogo = () => {
   const [specie, setSpecie] = useState<
     { id: string; nome: string; fotoUrl?: string }[]
   >([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     // Carica descrizione genere
     const fetchGenere = async () => {
       const snap = await getDocs(
@@ -36,7 +43,6 @@ const GenereCatalogo = () => {
       const snap = await getDocs(
         query(collection(db, "piante"), where("genere", "==", nome))
       );
-
       setSpecie(
         snap.docs.map((doc) => ({
           id: doc.id,
@@ -47,9 +53,9 @@ const GenereCatalogo = () => {
         }))
       );
     };
-
-    fetchGenere();
-    fetchSpecie();
+    Promise.all([fetchGenere(), fetchSpecie()]).finally(() =>
+      setLoading(false)
+    );
   }, [nome]);
 
   return (
@@ -90,11 +96,21 @@ const GenereCatalogo = () => {
 
       <Grid
         container
-        spacing={2}
+        spacing={3}
         sx={{ maxWidth: "1200px", margin: "auto" }}
         justifyContent="center"
       >
-        {specie.length === 0 ? (
+        {loading ? (
+          <Grid size={{ xs: 12 }}>
+            <Skeleton
+              variant="rectangular"
+              animation="wave"
+              width={320}
+              height={80}
+              sx={{ borderRadius: 2, mx: "auto" }}
+            />
+          </Grid>
+        ) : specie.length === 0 ? (
           <Grid size={{ xs: 12 }}>
             <Skeleton
               variant="rectangular"

@@ -1,17 +1,8 @@
+// React
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import Box from "@mui/material/Box";
-import TextField from "@mui/material/TextField";
-import Button from "@mui/material/Button";
-import Typography from "@mui/material/Typography";
-import Alert from "@mui/material/Alert";
-import IconButton from "@mui/material/IconButton";
-import CloseIcon from "@mui/icons-material/Close";
-import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
-import InputLabel from "@mui/material/InputLabel";
-import FormControl from "@mui/material/FormControl";
+
+// Firebase
 import { db } from "../../firebaseConfig";
 import {
   doc,
@@ -24,6 +15,20 @@ import {
 } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { deleteObject } from "firebase/storage";
+
+// MUI
+import Box from "@mui/material/Box";
+import TextField from "@mui/material/TextField";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
+import Alert from "@mui/material/Alert";
+import IconButton from "@mui/material/IconButton";
+import CloseIcon from "@mui/icons-material/Close";
+import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import InputLabel from "@mui/material/InputLabel";
+import FormControl from "@mui/material/FormControl";
 
 const storage = getStorage();
 
@@ -50,6 +55,9 @@ const AggiungiPianta = () => {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [famiglie, setFamiglie] = useState<string[]>([]);
+  const [tuttiIGeneri, setTuttiIGeneri] = useState<
+    { nome: string; famiglia: string }[]
+  >([]);
   const [generi, setGeneri] = useState<string[]>([]);
 
   useEffect(() => {
@@ -57,10 +65,24 @@ const AggiungiPianta = () => {
       const famSnap = await getDocs(collection(db, "famiglie"));
       setFamiglie(famSnap.docs.map((doc) => doc.data().nome));
       const genSnap = await getDocs(collection(db, "generi"));
-      setGeneri(genSnap.docs.map((doc) => doc.data().nome));
+      const generiArr = genSnap.docs.map((doc) => ({
+        nome: doc.data().nome,
+        famiglia: doc.data().famiglia,
+      }));
+      setTuttiIGeneri(generiArr);
     };
     fetchCategorie();
   }, []);
+
+  useEffect(() => {
+    if (famiglia) {
+      setGeneri(
+        tuttiIGeneri.filter((g) => g.famiglia === famiglia).map((g) => g.nome)
+      );
+    } else {
+      setGeneri([]);
+    }
+  }, [famiglia, tuttiIGeneri]);
 
   useEffect(() => {
     if (id) {
@@ -139,10 +161,16 @@ const AggiungiPianta = () => {
         .replace(/%2F/g, "/");
       const storageRef = ref(storage, path);
       await deleteObject(storageRef);
-    } catch (err) {
+    } catch (err: unknown) {
       console.log(err);
-      setError("Errore durante l'eliminazione della foto da Storage.");
-      setTimeout(() => setError(null), 2000);
+      setError(
+        err && typeof err === "object" && "message" in err
+          ? `Errore durante l'eliminazione della foto da Storage: ${
+              (err as { message?: string }).message
+            }`
+          : "Errore durante l'eliminazione della foto da Storage."
+      );
+      setTimeout(() => setError(null), 3000);
       return;
     }
 
@@ -153,15 +181,23 @@ const AggiungiPianta = () => {
     if (piantaDocId) {
       const docRef = doc(db, "piante", piantaDocId);
       const nuoveFoto = fotoUrls.filter((_, i) => i !== idx);
-      await updateDoc(docRef, { fotoUrls: nuoveFoto });
+      try {
+        await updateDoc(docRef, { fotoUrls: nuoveFoto });
+      } catch (err: unknown) {
+        setError(
+          err && typeof err === "object" && "message" in err
+            ? `Errore durante l'aggiornamento delle foto in Firestore: ${
+                (err as { message?: string }).message
+              }`
+            : "Errore durante l'aggiornamento delle foto in Firestore."
+        );
+        setTimeout(() => setError(null), 3000);
+        return;
+      }
     }
     setSuccess("Foto eliminata con successo!");
     setTimeout(() => setSuccess(null), 2000);
   };
-
-  useEffect(() => {
-    console.log(fotoUrls);
-  }, [fotoUrls]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -198,9 +234,15 @@ const AggiungiPianta = () => {
       setSuccess("Salvataggio avvenuto con successo!");
       setTimeout(() => setSuccess(null), 2000);
       setTimeout(() => navigate(`/dashboard/nuova/${piantaDocId}`), 1200);
-    } catch (err) {
-      setError("Errore durante il salvataggio. Riprova.");
-      setTimeout(() => setError(null), 2000);
+    } catch (err: unknown) {
+      setError(
+        err && typeof err === "object" && "message" in err
+          ? `Errore durante il salvataggio: ${
+              (err as { message?: string }).message
+            }`
+          : "Errore durante il salvataggio. Riprova."
+      );
+      setTimeout(() => setError(null), 3000);
       console.log(err);
     } finally {
       setSaving(false);
@@ -232,6 +274,7 @@ const AggiungiPianta = () => {
           fullWidth
           required
           sx={{ mb: 2 }}
+          autoFocus
         />
 
         <FormControl fullWidth required sx={{ mb: 2 }}>
@@ -411,6 +454,7 @@ const AggiungiPianta = () => {
                     />
                     <IconButton
                       size="small"
+                      aria-label={`Rimuovi foto ${idx + 1}`}
                       sx={{
                         position: "absolute",
                         top: 4,
@@ -429,10 +473,15 @@ const AggiungiPianta = () => {
           </Box>
           <Button
             variant="contained"
-            color="primary"
             startIcon={<PhotoCameraIcon />}
             component="label"
-            sx={{ mt: 3, alignSelf: "flex-start" }}
+            sx={{
+              background: "#FFC107",
+              color: "#222",
+              "&:hover": { background: "#ffb300" },
+              mt: 3,
+              alignSelf: "flex-start",
+            }}
           >
             Carica foto
             <input
@@ -467,9 +516,13 @@ const AggiungiPianta = () => {
           <Button
             type="submit"
             variant="contained"
-            color="primary"
-            sx={{ width: "30%" }}
-            disabled={saving}
+            sx={{
+              width: "30%",
+              background: "#FFC107",
+              color: "#222",
+              "&:hover": { background: "#ffb300" },
+            }}
+            disabled={saving || !specie || !famiglia || !genere}
           >
             {saving ? "Salvataggio..." : "Salva"}
           </Button>

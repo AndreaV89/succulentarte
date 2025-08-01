@@ -1,5 +1,5 @@
 // React
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 // Firebase
@@ -96,7 +96,7 @@ const Indice = () => {
                 {lettera}
               </ListSubheader>
               {pianteRaggruppate[lettera].map((pianta, index) => (
-                <>
+                <React.Fragment key={pianta.id}>
                   <ListItemButton
                     key={pianta.id}
                     onClick={() => navigate(`/pianta/${pianta.id}`)}
@@ -113,7 +113,7 @@ const Indice = () => {
                   {index < pianteRaggruppate[lettera].length - 1 && (
                     <Divider component="li" />
                   )}
-                </>
+                </React.Fragment>
               ))}
             </ul>
           </li>

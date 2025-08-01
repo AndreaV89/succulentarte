@@ -14,14 +14,15 @@ import Grid from "@mui/material/Grid";
 import CardPianta from "../components/CardPianta";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import Link from "@mui/material/Link";
+import Skeleton from "@mui/material/Skeleton";
 
 const FamigliaCatalogo = () => {
   const navigate = useNavigate();
   const { nome } = useParams<{ nome: string }>();
   const [descrizione, setDescrizione] = useState<string>("");
-  const [generi, setGeneri] = useState<{ nome: string; descrizione: string }[]>(
-    []
-  );
+  const [generi, setGeneri] = useState<
+    { nome: string; descrizione: string; fotoUrl?: string }[]
+  >([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,6 +46,7 @@ const FamigliaCatalogo = () => {
         snap.docs.map((doc) => ({
           nome: doc.data().nome,
           descrizione: doc.data().descrizione || "",
+          fotoUrl: doc.data().fotoUrl,
         }))
       );
     };
@@ -61,23 +63,38 @@ const FamigliaCatalogo = () => {
         mx: "auto",
       }}
     >
-      <Breadcrumbs sx={{ mb: 2 }}>
-        <Link
-          sx={{ cursor: "pointer" }}
-          underline="hover"
-          color="inherit"
-          onClick={() => navigate("/")}
-        >
-          Home
-        </Link>
-        <Typography color="text.primary">{nome}</Typography>
-      </Breadcrumbs>
-      <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
-        {nome}
-      </Typography>
-      <Typography sx={{ mb: 4, color: "#666" }}>
-        {descrizione || "Nessuna descrizione disponibile."}
-      </Typography>
+      {loading ? (
+        <>
+          <Skeleton variant="rounded" width={400} height={24} sx={{ mb: 2 }} />
+          <Skeleton variant="rounded" width={400} height={42} sx={{ mb: 3 }} />
+          <Skeleton
+            variant="rounded"
+            width={1200}
+            height={150}
+            sx={{ mb: 4 }}
+          />
+        </>
+      ) : (
+        <>
+          <Breadcrumbs sx={{ mb: 2 }}>
+            <Link
+              sx={{ cursor: "pointer" }}
+              underline="hover"
+              color="inherit"
+              onClick={() => navigate("/")}
+            >
+              Home
+            </Link>
+            <Typography color="text.primary">{nome}</Typography>
+          </Breadcrumbs>
+          <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
+            {nome}
+          </Typography>
+          <Typography sx={{ mb: 4, color: "#666" }}>
+            {descrizione || "Nessuna descrizione disponibile."}
+          </Typography>
+        </>
+      )}
 
       <Grid
         container
@@ -86,9 +103,26 @@ const FamigliaCatalogo = () => {
         justifyContent="center"
       >
         {loading ? (
-          <Box sx={{ textAlign: "center", py: 6, color: "#888" }}>
-            Caricamento...
-          </Box>
+          <>
+            <Grid size={{ xs: 4 }}>
+              <Skeleton variant="rounded" width={316} height={414} />
+            </Grid>
+            <Grid size={{ xs: 4 }}>
+              <Skeleton variant="rounded" width={316} height={414} />
+            </Grid>
+            <Grid size={{ xs: 4 }}>
+              <Skeleton variant="rounded" width={316} height={414} />
+            </Grid>
+            <Grid size={{ xs: 4 }}>
+              <Skeleton variant="rounded" width={316} height={414} />
+            </Grid>
+            <Grid size={{ xs: 4 }}>
+              <Skeleton variant="rounded" width={316} height={414} />
+            </Grid>
+            <Grid size={{ xs: 4 }}>
+              <Skeleton variant="rounded" width={316} height={414} />
+            </Grid>
+          </>
         ) : generi.length === 0 ? (
           <Grid size={{ xs: 12 }}>
             <Box sx={{ textAlign: "center", py: 6, color: "#888" }}>
@@ -98,14 +132,17 @@ const FamigliaCatalogo = () => {
         ) : (
           generi.map((g) => (
             <Grid
-              size={{ xs: 12, md: 6, lg: 4 }}
+              size={{ xs: 12 }}
               key={g.nome}
               sx={{ display: "flex", justifyContent: "center" }}
             >
               <CardPianta
                 id={g.nome}
                 specie={g.nome}
-                fotoUrl="https://us.123rf.com/450wm/pixora/pixora2503/pixora250322977/242679423-stylish-navelwort-houseplant-art.jpg?ver=6"
+                fotoUrl={
+                  g.fotoUrl ||
+                  "https://us.123rf.com/450wm/pixora/pixora2503/pixora250322977/242679423-stylish-navelwort-houseplant-art.jpg?ver=6"
+                }
                 onClick={() => navigate(`/catalogo/genere/${g.nome}`)}
               />
             </Grid>

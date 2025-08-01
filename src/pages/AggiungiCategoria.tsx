@@ -11,7 +11,16 @@ import {
   doc,
   serverTimestamp,
   updateDoc,
+  query,
+  where,
 } from "firebase/firestore";
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject,
+} from "firebase/storage";
 
 // MUI
 import Box from "@mui/material/Box";
@@ -44,25 +53,31 @@ const Categorie = () => {
 
   // Famiglie
   const [famiglie, setFamiglie] = useState<
-    { nome: string; descrizione: string }[]
+    { nome: string; descrizione: string; fotoUrl?: string }[]
   >([]);
+  const [famigliaFotoUrl, setFamigliaFotoUrl] = useState<string | null>(null);
+  const [famigliaFotoFile, setFamigliaFotoFile] = useState<File | null>(null);
   const [famigliaNome, setFamigliaNome] = useState("");
   const [famigliaDescrizione, setFamigliaDescrizione] = useState("");
   const [famigliaEdit, setFamigliaEdit] = useState<{
     nome: string;
     descrizione: string;
+    fotoUrl?: string;
   } | null>(null);
 
   // Generi
   const [generi, setGeneri] = useState<
-    { nome: string; descrizione: string; famiglia: string }[]
+    { nome: string; descrizione: string; famiglia: string; fotoUrl?: string }[]
   >([]);
+  const [genereFotoUrl, setGenereFotoUrl] = useState<string | null>(null);
+  const [genereFotoFile, setGenereFotoFile] = useState<File | null>(null);
   const [genereNome, setGenereNome] = useState("");
   const [genereDescrizione, setGenereDescrizione] = useState("");
   const [genereFamiglia, setGenereFamiglia] = useState("");
   const [genereEdit, setGenereEdit] = useState<{
     nome: string;
     descrizione: string;
+    fotoUrl?: string;
     famiglia: string;
   } | null>(null);
 
@@ -77,6 +92,7 @@ const Categorie = () => {
       famSnap.docs.map((doc) => ({
         nome: doc.data().nome,
         descrizione: doc.data().descrizione || "",
+        fotoUrl: doc.data().fotoUrl,
       }))
     );
     const genSnap = await getDocs(collection(db, "generi"));
@@ -85,6 +101,7 @@ const Categorie = () => {
         nome: doc.data().nome,
         descrizione: doc.data().descrizione || "",
         famiglia: doc.data().famiglia || "",
+        fotoUrl: doc.data().fotoUrl,
       }))
     );
   };
@@ -98,6 +115,8 @@ const Categorie = () => {
     setFamigliaEdit(null);
     setFamigliaNome("");
     setFamigliaDescrizione("");
+    setFamigliaFotoUrl(null);
+    setFamigliaFotoFile(null);
     setShowFamigliaModal(false);
   };
   const resetGenereForm = () => {
@@ -105,6 +124,8 @@ const Categorie = () => {
     setGenereNome("");
     setGenereDescrizione("");
     setGenereFamiglia("");
+    setGenereFotoUrl(null);
+    setGenereFotoFile(null);
     setShowGenereModal(false);
   };
 
@@ -112,23 +133,60 @@ const Categorie = () => {
   const handleAggiungiFamiglia = async () => {
     if (!famigliaNome.trim()) return;
     try {
+      let fotoUrl = famigliaFotoUrl || "";
+      const storage = getStorage();
+
+      // Se l'utente ha rimosso una foto esistente
+      if (famigliaEdit?.fotoUrl && !famigliaFotoUrl && !famigliaFotoFile) {
+        const fotoRef = ref(storage, famigliaEdit.fotoUrl);
+        try {
+          await deleteObject(fotoRef);
+        } catch (error) {
+          console.warn("La foto da eliminare non è stata trovata:", error);
+        }
+        fotoUrl = ""; // Assicura che l'URL venga rimosso da Firestore
+      }
+
+      // Se l'utente ha caricato una nuova foto
+      if (famigliaFotoFile) {
+        // Se c'era una vecchia foto, eliminala prima di caricare la nuova
+        if (famigliaEdit?.fotoUrl) {
+          const fotoRef = ref(storage, famigliaEdit.fotoUrl);
+          try {
+            await deleteObject(fotoRef);
+          } catch (error) {
+            console.warn("La vecchia foto non è stata trovata:", error);
+          }
+        }
+        const storageRef = ref(
+          storage,
+          `categorie/famiglie/${Date.now()}_${famigliaFotoFile.name}`
+        );
+        await uploadBytes(storageRef, famigliaFotoFile);
+        fotoUrl = await getDownloadURL(storageRef);
+      }
+
+      const data = {
+        nome: famigliaNome.trim(),
+        descrizione: famigliaDescrizione.trim(),
+        fotoUrl: fotoUrl,
+      };
+
       if (famigliaEdit) {
         // Modifica
-        const snap = await getDocs(collection(db, "famiglie"));
-        const docToUpdate = snap.docs.find(
-          (d) => d.data().nome === famigliaEdit.nome
+        const snap = await getDocs(
+          query(
+            collection(db, "famiglie"),
+            where("nome", "==", famigliaEdit.nome)
+          )
         );
-        if (docToUpdate) {
-          await updateDoc(doc(db, "famiglie", docToUpdate.id), {
-            nome: famigliaNome.trim(),
-            descrizione: famigliaDescrizione.trim(),
-          });
+        if (!snap.empty) {
+          await updateDoc(doc(db, "famiglie", snap.docs[0].id), data);
         }
       } else {
         // Nuova
         await addDoc(collection(db, "famiglie"), {
-          nome: famigliaNome.trim(),
-          descrizione: famigliaDescrizione.trim(),
+          ...data,
           createdAt: serverTimestamp(),
         });
       }
@@ -143,36 +201,77 @@ const Categorie = () => {
   const handleModificaFamiglia = (famiglia: {
     nome: string;
     descrizione: string;
+    fotoUrl?: string;
   }) => {
     setFamigliaEdit(famiglia);
     setFamigliaNome(famiglia.nome);
     setFamigliaDescrizione(famiglia.descrizione);
+    setFamigliaFotoUrl(famiglia.fotoUrl || null);
     setShowFamigliaModal(true);
+  };
+
+  // Rimuovi foto famiglia
+  const handleRimuoviFotoFamiglia = () => {
+    setFamigliaFotoFile(null);
+    setFamigliaFotoUrl(null);
   };
 
   // Aggiungi/modifica genere
   const handleAggiungiGenere = async () => {
     if (!genereNome.trim() || !genereFamiglia) return;
     try {
+      let fotoUrl = genereFotoUrl || "";
+      const storage = getStorage();
+
+      // Se l'utente ha rimosso una foto esistente
+      if (genereEdit?.fotoUrl && !genereFotoUrl && !genereFotoFile) {
+        const fotoRef = ref(storage, genereEdit.fotoUrl);
+        try {
+          await deleteObject(fotoRef);
+        } catch (error) {
+          console.warn("La foto da eliminare non è stata trovata:", error);
+        }
+        fotoUrl = ""; // Assicura che l'URL venga rimosso da Firestore
+      }
+
+      // Se l'utente ha caricato una nuova foto
+      if (genereFotoFile) {
+        // Se c'era una vecchia foto, eliminala prima di caricare la nuova
+        if (genereEdit?.fotoUrl) {
+          const fotoRef = ref(storage, genereEdit.fotoUrl);
+          try {
+            await deleteObject(fotoRef);
+          } catch (error) {
+            console.warn("La vecchia foto non è stata trovata:", error);
+          }
+        }
+        const storageRef = ref(
+          storage,
+          `categorie/generi/${Date.now()}_${genereFotoFile.name}`
+        );
+        await uploadBytes(storageRef, genereFotoFile);
+        fotoUrl = await getDownloadURL(storageRef);
+      }
+
+      const data = {
+        nome: genereNome.trim(),
+        descrizione: genereDescrizione.trim(),
+        famiglia: genereFamiglia,
+        fotoUrl: fotoUrl, // <-- AGGIUNTO
+      };
+
       if (genereEdit) {
         // Modifica
-        const snap = await getDocs(collection(db, "generi"));
-        const docToUpdate = snap.docs.find(
-          (d) => d.data().nome === genereEdit.nome
+        const snap = await getDocs(
+          query(collection(db, "generi"), where("nome", "==", genereEdit.nome))
         );
-        if (docToUpdate) {
-          await updateDoc(doc(db, "generi", docToUpdate.id), {
-            nome: genereNome.trim(),
-            descrizione: genereDescrizione.trim(),
-            famiglia: genereFamiglia,
-          });
+        if (!snap.empty) {
+          await updateDoc(doc(db, "generi", snap.docs[0].id), data);
         }
       } else {
         // Nuovo
         await addDoc(collection(db, "generi"), {
-          nome: genereNome.trim(),
-          descrizione: genereDescrizione.trim(),
-          famiglia: genereFamiglia,
+          ...data,
           createdAt: serverTimestamp(),
         });
       }
@@ -188,39 +287,85 @@ const Categorie = () => {
     nome: string;
     descrizione: string;
     famiglia: string;
+    fotoUrl?: string;
   }) => {
     setGenereEdit(genere);
     setGenereNome(genere.nome);
     setGenereDescrizione(genere.descrizione);
     setGenereFamiglia(genere.famiglia || "");
+    setGenereFotoUrl(genere.fotoUrl || null);
     setShowGenereModal(true);
+  };
+
+  // Rimuovi foto genere
+  const handleRimuoviFotoGenere = () => {
+    setGenereFotoFile(null);
+    setGenereFotoUrl(null);
   };
 
   // Elimina famiglia
   const handleRimuoviFamiglia = async (nome: string) => {
     try {
-      const snap = await getDocs(collection(db, "famiglie"));
-      const docToDelete = snap.docs.find((d) => d.data().nome === nome);
-      if (docToDelete) {
-        await deleteDoc(doc(db, "famiglie", docToDelete.id));
-        await fetchData();
+      const snap = await getDocs(
+        query(collection(db, "famiglie"), where("nome", "==", nome))
+      );
+      if (snap.empty) return;
+
+      const docToDelete = snap.docs[0];
+      const fotoUrl = docToDelete.data().fotoUrl;
+
+      // Se esiste una foto, eliminala prima da Storage
+      if (fotoUrl) {
+        const storage = getStorage();
+        const fotoRef = ref(storage, fotoUrl);
+        try {
+          await deleteObject(fotoRef);
+        } catch (storageError) {
+          console.warn(
+            "Impossibile eliminare la foto da Storage (potrebbe essere già stata rimossa):",
+            storageError
+          );
+        }
       }
+
+      // Ora elimina il documento da Firestore
+      await deleteDoc(doc(db, "famiglie", docToDelete.id));
+      await fetchData();
     } catch (err) {
-      alert("Errore: " + err);
+      alert("Errore durante l'eliminazione della famiglia: " + err);
     }
   };
 
   // Elimina genere
   const handleRimuoviGenere = async (nome: string) => {
     try {
-      const snap = await getDocs(collection(db, "generi"));
-      const docToDelete = snap.docs.find((d) => d.data().nome === nome);
-      if (docToDelete) {
-        await deleteDoc(doc(db, "generi", docToDelete.id));
-        await fetchData();
+      const snap = await getDocs(
+        query(collection(db, "generi"), where("nome", "==", nome))
+      );
+      if (snap.empty) return;
+
+      const docToDelete = snap.docs[0];
+      const fotoUrl = docToDelete.data().fotoUrl;
+
+      // Se esiste una foto, eliminala prima da Storage
+      if (fotoUrl) {
+        const storage = getStorage();
+        const fotoRef = ref(storage, fotoUrl);
+        try {
+          await deleteObject(fotoRef);
+        } catch (storageError) {
+          console.warn(
+            "Impossibile eliminare la foto da Storage (potrebbe essere già stata rimossa):",
+            storageError
+          );
+        }
       }
+
+      // Ora elimina il documento da Firestore
+      await deleteDoc(doc(db, "generi", docToDelete.id));
+      await fetchData();
     } catch (err) {
-      alert("Errore: " + err);
+      alert("Errore durante l'eliminazione del genere: " + err);
     }
   };
 
@@ -490,6 +635,49 @@ const Categorie = () => {
               multiline
               minRows={6}
             />
+            <Button variant="outlined" component="label">
+              Carica Foto Famiglia
+              <input
+                type="file"
+                hidden
+                accept="image/*"
+                onChange={(e) =>
+                  e.target.files && setFamigliaFotoFile(e.target.files[0])
+                }
+              />
+            </Button>
+            {(famigliaFotoUrl || famigliaFotoFile) && (
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 1,
+                }}
+              >
+                <Box
+                  component="img"
+                  src={
+                    famigliaFotoFile
+                      ? URL.createObjectURL(famigliaFotoFile)
+                      : famigliaFotoUrl || ""
+                  }
+                  sx={{
+                    width: 100,
+                    height: 100,
+                    objectFit: "cover",
+                    alignSelf: "center",
+                  }}
+                />
+                <Button
+                  size="small"
+                  color="error"
+                  onClick={handleRimuoviFotoFamiglia}
+                >
+                  Rimuovi Foto
+                </Button>
+              </Box>
+            )}
           </Box>
         </DialogContent>
         <DialogActions>
@@ -536,6 +724,49 @@ const Categorie = () => {
               multiline
               minRows={6}
             />
+            <Button variant="outlined" component="label">
+              Carica Foto Genere
+              <input
+                type="file"
+                hidden
+                accept="image/*"
+                onChange={(e) =>
+                  e.target.files && setGenereFotoFile(e.target.files[0])
+                }
+              />
+            </Button>
+            {(genereFotoUrl || genereFotoFile) && (
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 1,
+                }}
+              >
+                <Box
+                  component="img"
+                  src={
+                    genereFotoFile
+                      ? URL.createObjectURL(genereFotoFile)
+                      : genereFotoUrl || ""
+                  }
+                  sx={{
+                    width: 100,
+                    height: 100,
+                    objectFit: "cover",
+                    alignSelf: "center",
+                  }}
+                />
+                <Button
+                  size="small"
+                  color="error"
+                  onClick={handleRimuoviFotoGenere}
+                >
+                  Rimuovi Foto
+                </Button>
+              </Box>
+            )}
             <Select
               value={genereFamiglia}
               onChange={(e) => setGenereFamiglia(e.target.value)}

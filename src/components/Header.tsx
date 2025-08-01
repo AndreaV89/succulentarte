@@ -74,6 +74,7 @@ const Header = (): JSX.Element => {
   const [searching, setSearching] = useState(false);
   const navigate = useNavigate();
 
+  // Ricerca
   useEffect(() => {
     if (searchValue.length < 2) {
       setResults([]);
@@ -86,19 +87,18 @@ const Header = (): JSX.Element => {
       const col = collection(db, "piante");
       const searchLower = searchValue.toLowerCase();
 
-      // Query per specie
       const q1 = query(
         col,
         where("specie", ">=", searchValue),
         where("specie", "<=", searchValue + "\uf8ff")
       );
-      // Query per genere
+
       const q2 = query(
         col,
         where("genere", ">=", searchValue),
         where("genere", "<=", searchValue + "\uf8ff")
       );
-      // Query per famiglia
+
       const q3 = query(
         col,
         where("famiglia", ">=", searchValue),
@@ -111,13 +111,11 @@ const Header = (): JSX.Element => {
         getDocs(q3),
       ]);
 
-      // Unisci risultati senza duplicati
       const allDocs = [...snap1.docs, ...snap2.docs, ...snap3.docs];
       const unique = Array.from(
         new Map(allDocs.map((doc) => [doc.id, doc])).values()
       );
 
-      // Filtro lato client per "contains" e case-insensitive
       const arr = unique
         .map((doc) => ({
           id: doc.id,
@@ -135,12 +133,21 @@ const Header = (): JSX.Element => {
 
       setResults(arr.slice(0, 8));
       setSearching(false);
-      console.log("Risultati ricerca:", arr);
     }, 300);
 
     return () => clearTimeout(fetch);
   }, [searchValue]);
 
+  // Gestisce il click su un risultato
+  const handleResultClick = (id: string) => {
+    navigate(`/pianta/${id}`);
+    setTimeout(() => {
+      setSearchValue("");
+      setResults([]);
+    }, 100);
+  };
+
+  // Gestisce lo scroll
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 30);
@@ -149,18 +156,12 @@ const Header = (): JSX.Element => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Gestisce l'apertura del menu su mobile
   const handleOpenNavMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorElNav(event.currentTarget);
   };
 
-  const handleResultClick = (id: string) => {
-    navigate(`/pianta/${id}`);
-    setTimeout(() => {
-      setSearchValue("");
-      setResults([]);
-    }, 100); // attende che la navigazione avvenga prima di svuotare il campo
-  };
-
+  // Gestisce la chiusura del menu su mobile
   const handleCloseNavMenu = () => {
     setAnchorElNav(null);
   };
@@ -245,7 +246,7 @@ const Header = (): JSX.Element => {
                   my: 2,
                   color: "white",
                   display: "block",
-                  "&:hover": { color: "#FFC107" },
+                  "&:hover": { color: "secondary.main" },
                 }}
                 aria-label={page.label}
               >
@@ -307,7 +308,7 @@ const Header = (): JSX.Element => {
                     ...params.InputProps,
                     disableUnderline: true,
                     sx: {
-                      pl: 5, // spazio per l'icona
+                      pl: 5,
                       py: 0.5,
                       borderRadius: 3,
                       backgroundColor: "transparent",
@@ -362,7 +363,7 @@ const Header = (): JSX.Element => {
             }}
           />
 
-          {/* Icona Profilo */}
+          {/* Dashboard */}
           <Button
             component={Link}
             to="/dashboard"
@@ -370,7 +371,7 @@ const Header = (): JSX.Element => {
               my: 2,
               color: "white",
               display: "block",
-              "&:hover": { color: "#FFC107" },
+              "&:hover": { color: "secondary.main" },
             }}
             aria-label="Dashboard"
           >
@@ -381,4 +382,5 @@ const Header = (): JSX.Element => {
     </AppBar>
   );
 };
+
 export default Header;

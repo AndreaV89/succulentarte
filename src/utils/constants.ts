@@ -1,0 +1,1 @@
+export const FALLBACK_IMAGE_URL = "https://us.123rf.com/450wm/pixora/pixora2503/pixora250322977/242679423-stylish-navelwort-houseplant-art.jpg?ver=6";

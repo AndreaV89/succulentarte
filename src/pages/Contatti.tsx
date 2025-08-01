@@ -6,13 +6,16 @@ import Typography from "@mui/material/Typography";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Link from "@mui/material/Link";
 import TextField from "@mui/material/TextField";
+import Link from "@mui/material/Link";
 import Grid from "@mui/material/Grid";
-import SendIcon from "@mui/icons-material/Send";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
+import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
+import CircularProgress from "@mui/material/CircularProgress";
+import SendIcon from "@mui/icons-material/Send";
+import LocationOnIcon from "@mui/icons-material/LocationOn";
+import PhoneIcon from "@mui/icons-material/Phone";
+import EmailIcon from "@mui/icons-material/Email";
 
 const Contatti = () => {
   const [nome, setNome] = React.useState("");
@@ -25,146 +28,150 @@ const Contatti = () => {
   function handleClick(e: React.FormEvent) {
     e.preventDefault();
     if (!nome || !email || !messaggio) {
-      setError("Compila tutti i campi.");
-      setTimeout(() => setError(null), 2000);
+      setError("Per favore, compila tutti i campi.");
+      setTimeout(() => setError(null), 3000);
       return;
     }
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      setSuccess("Messaggio inviato! Ti risponderò presto.");
+      setSuccess("Messaggio inviato! Grazie per avermi contattato.");
       setNome("");
       setEmail("");
       setMessaggio("");
-      setTimeout(() => setSuccess(null), 3000);
+      setTimeout(() => setSuccess(null), 4000);
     }, 1500);
   }
 
   return (
-    <Box sx={{ flexGrow: 1, mt: "120px", mb: "50px", color: "black" }}>
-      <Grid container justifyContent="center">
-        <Grid size={{ xs: 12, md: 8, lg: 6 }}>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        flexGrow: 1,
+        mt: "130px",
+        mb: "50px",
+        px: { xs: 2, md: 4 },
+      }}
+    >
+      <Grid
+        container
+        spacing={{ xs: 4, md: 8 }}
+        justifyContent="center"
+        alignItems="flex-start"
+        sx={{ maxWidth: "1200px" }}
+      >
+        {/* Colonna Sinistra: Info Contatto */}
+        <Grid size={{ xs: 12, md: 6 }}>
           <Typography
-            gutterBottom
             variant="h3"
-            align="center"
-            sx={{
-              color: "#018732",
-              fontWeight: 700,
-              mb: 3,
-              letterSpacing: ".04em",
-            }}
+            component="h1"
+            sx={{ fontWeight: 700, mb: 2, color: "primary.main" }}
           >
-            Contattami
+            Mettiamoci in contatto
           </Typography>
-          <Card
-            elevation={0}
-            sx={{
-              borderRadius: 5,
-              border: "2px solid #FFC107",
-              background: "#fffbea",
-              boxShadow: "0 4px 24px rgba(0,0,0,0.07)",
-              px: { xs: 1, sm: 4 },
-              py: { xs: 2, sm: 4 },
-            }}
-          >
-            <CardContent>
-              <Typography align="center" sx={{ mb: 1.5 }}>
-                Vieni a trovarmi a{" "}
-                <Link
-                  underline="hover"
-                  href="https://www.google.it/maps/place/Via+Alcide+de+Gasperi,+11,+53013+Gaiole+In+Chianti+SI/@43.4677893,11.430667,17z/data=!3m1!4b1!4m6!3m5!1s0x132bcbde56dd180b:0xe9110140a9ec6507!8m2!3d43.4677893!4d11.430667!16s%2Fg%2F11c0_njw50?entry=ttu&g_ep=EgoyMDI1MDUyOC4wIKXMDSoASAFQAw%3D%3D"
-                  target="_blank"
-                  sx={{ color: "#018732", fontWeight: 500 }}
-                >
-                  Gaiole in Chianti, Via A. de Gasperi 11, 53013 (SI)
-                </Link>
-              </Typography>
-              <Typography align="center" sx={{ mb: 1.5 }}>
-                Chiamami al{" "}
-                <Link
-                  underline="hover"
-                  href="tel:+393703013861"
-                  sx={{ color: "#018732", fontWeight: 500 }}
-                >
-                  370 3013861
-                </Link>
-              </Typography>
-              <Typography align="center" sx={{ mb: 3 }}>
-                Oppure scrivimi tramite il modulo qui sotto. Ti risponderò il
-                prima possibile!
-              </Typography>
-              <Box
-                component="form"
-                autoComplete="off"
-                onSubmit={handleClick}
-                sx={{ maxWidth: 480, mx: "auto" }}
+          <Typography sx={{ mb: 4, color: "text.secondary" }}>
+            Hai domande, curiosità o vuoi semplicemente salutarmi? Compila il
+            modulo o usa i contatti qui sotto. Sarò felice di risponderti!
+          </Typography>
+
+          <Stack spacing={3}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <LocationOnIcon color="secondary" />
+              <Link
+                underline="hover"
+                href="https://www.google.it/maps/place/Via+Alcide+de+Gasperi,+11,+53013+Gaiole+In+Chianti+SI/@43.4677893,11.430667,17z/data=!3m1!4b1!4m6!3m5!1s0x132bcbde56dd180b:0xe9110140a9ec6507!8m2!3d43.4677893!4d11.430667!16s%2Fg%2F11c0_njw50?entry=ttu&g_ep=EgoyMDI1MDUyOC4wIKXMDSoASAFQAw%3D%3D"
+                target="_blank"
+                color="text.primary"
               >
-                <Stack spacing={2}>
-                  {error && (
-                    <Alert severity="error" sx={{ mb: 1 }}>
-                      {error}
-                    </Alert>
+                Via A. de Gasperi 11, 53013 Gaiole in Chianti (SI)
+              </Link>
+            </Stack>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <PhoneIcon color="secondary" />
+              <Link
+                underline="hover"
+                href="tel:+393703013861"
+                color="text.primary"
+              >
+                370 3013861
+              </Link>
+            </Stack>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <EmailIcon color="secondary" />
+              <Link
+                underline="hover"
+                href="mailto:r.vannetti@gmail.com"
+                color="text.primary"
+              >
+                r.vannetti@gmail.com
+              </Link>
+            </Stack>
+          </Stack>
+        </Grid>
+
+        {/* Colonna Destra: Form */}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Paper elevation={3} sx={{ p: { xs: 2, sm: 4 }, borderRadius: 4 }}>
+            <Box
+              component="form"
+              autoComplete="off"
+              onSubmit={handleClick}
+              noValidate
+            >
+              <Stack spacing={2.5}>
+                {error && <Alert severity="error">{error}</Alert>}
+                {success && <Alert severity="success">{success}</Alert>}
+
+                <TextField
+                  label="Il tuo nome"
+                  variant="outlined"
+                  fullWidth
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  required
+                />
+                <TextField
+                  label="La tua email"
+                  type="email"
+                  variant="outlined"
+                  fullWidth
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+                <TextField
+                  variant="outlined"
+                  label="Il tuo messaggio"
+                  multiline
+                  rows={5}
+                  fullWidth
+                  value={messaggio}
+                  onChange={(e) => setMessaggio(e.target.value)}
+                  required
+                />
+                <Button
+                  variant="contained"
+                  endIcon={loading ? null : <SendIcon />}
+                  type="submit"
+                  disabled={loading}
+                  size="large"
+                  sx={{
+                    fontWeight: 600,
+                    py: 1.5,
+                  }}
+                >
+                  {loading ? (
+                    <CircularProgress size={26} color="inherit" />
+                  ) : (
+                    "Invia Messaggio"
                   )}
-                  {success && (
-                    <Alert severity="success" sx={{ mb: 1 }}>
-                      {success}
-                    </Alert>
-                  )}
-                  <TextField
-                    label="Nome"
-                    variant="outlined"
-                    type="text"
-                    fullWidth
-                    value={nome}
-                    onChange={(e) => setNome(e.target.value)}
-                    aria-label="Nome"
-                  />
-                  <TextField
-                    label="Email"
-                    type="email"
-                    variant="outlined"
-                    fullWidth
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    aria-label="Email"
-                  />
-                  <TextField
-                    variant="outlined"
-                    label="Messaggio"
-                    multiline
-                    rows={6}
-                    fullWidth
-                    value={messaggio}
-                    onChange={(e) => setMessaggio(e.target.value)}
-                    aria-label="Messaggio"
-                  />
-                  <Button
-                    variant="contained"
-                    endIcon={<SendIcon />}
-                    type="submit"
-                    disabled={loading}
-                    sx={{
-                      width: { xs: "100%", sm: "60%" },
-                      fontWeight: 700,
-                      fontSize: 18,
-                      borderRadius: 99,
-                      mx: "auto",
-                      background: "#FFC107",
-                      color: "#222",
-                      boxShadow: 2,
-                      mt: 1,
-                      "&:hover": { background: "#ffb300" },
-                      display: "flex",
-                    }}
-                    aria-label="Invia messaggio"
-                  >
-                    {loading ? "Invio..." : "Invia"}
-                  </Button>
-                </Stack>
-              </Box>
-            </CardContent>
-          </Card>
+                </Button>
+              </Stack>
+            </Box>
+          </Paper>
         </Grid>
       </Grid>
     </Box>

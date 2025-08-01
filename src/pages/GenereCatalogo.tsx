@@ -16,6 +16,9 @@ import CardPianta from "../components/CardPianta";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import Link from "@mui/material/Link";
 
+// Fallback image
+import { FALLBACK_IMAGE_URL } from "../utils/constants";
+
 const GenereCatalogo = () => {
   const navigate = useNavigate();
   const { nome } = useParams<{ nome: string }>();
@@ -28,7 +31,6 @@ const GenereCatalogo = () => {
 
   useEffect(() => {
     setLoading(true);
-    // Carica descrizione genere
     const fetchGenere = async () => {
       const snap = await getDocs(
         query(collection(db, "generi"), where("nome", "==", nome))
@@ -38,7 +40,6 @@ const GenereCatalogo = () => {
         setFamigliaNome(snap.docs[0].data().famiglia || "");
       }
     };
-    // Carica specie del genere
     const fetchSpecie = async () => {
       const snap = await getDocs(
         query(collection(db, "piante"), where("genere", "==", nome))
@@ -47,9 +48,7 @@ const GenereCatalogo = () => {
         snap.docs.map((doc) => ({
           id: doc.id,
           nome: doc.data().specie,
-          fotoUrl:
-            doc.data().fotoUrls ||
-            "https://us.123rf.com/450wm/pixora/pixora2503/pixora250322977/242679423-stylish-navelwort-houseplant-art.jpg?ver=6",
+          fotoUrl: doc.data().fotoUrls || FALLBACK_IMAGE_URL,
         }))
       );
     };
@@ -152,10 +151,7 @@ const GenereCatalogo = () => {
               <CardPianta
                 id={s.id}
                 specie={s.nome}
-                fotoUrl={
-                  s.fotoUrl ||
-                  "https://us.123rf.com/450wm/pixora/pixora2503/pixora250322977/242679423-stylish-navelwort-houseplant-art.jpg?ver=6"
-                }
+                fotoUrl={s.fotoUrl || FALLBACK_IMAGE_URL}
                 onClick={() => navigate(`/pianta/${s.id}`)}
               />
             </Grid>

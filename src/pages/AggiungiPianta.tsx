@@ -227,7 +227,7 @@ const AggiungiPianta = () => {
         esposizione: esposizione,
         bagnature: bagnature,
         temperaturaMinima: temperaturaMinima,
-        fotoUrls: fotoUrls, // già aggiornato da handleFotoChange
+        fotoUrls: fotoUrls,
         updatedAt: serverTimestamp(),
       };
       await updateDoc(doc(db, "piante", piantaDocId), piantaData);
@@ -505,7 +505,7 @@ const AggiungiPianta = () => {
         )}
         <Box sx={{ display: "flex", justifyContent: "space-around" }}>
           <Button
-            variant="contained"
+            variant="outlined"
             color="secondary"
             sx={{ width: "30%" }}
             onClick={() => navigate("/dashboard")}
@@ -516,11 +516,9 @@ const AggiungiPianta = () => {
           <Button
             type="submit"
             variant="contained"
+            color="primary"
             sx={{
               width: "30%",
-              background: "#FFC107",
-              color: "#222",
-              "&:hover": { background: "#ffb300" },
             }}
             disabled={saving || !specie || !famiglia || !genere}
           >

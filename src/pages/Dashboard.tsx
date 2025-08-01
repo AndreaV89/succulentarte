@@ -156,7 +156,6 @@ const Dashboard = () => {
       >
         Logout
       </Button>
-      {/* Bottone per andare alla pagina categorie */}
       <Button
         variant="outlined"
         color="primary"

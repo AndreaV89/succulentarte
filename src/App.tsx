@@ -1,5 +1,4 @@
 // React
-import { AuthProvider } from "./context/AuthProvider";
 import { Route, Routes } from "react-router-dom";
 
 // Components
@@ -20,65 +19,46 @@ import AggiungiCategoria from "./pages/AggiungiCategoria";
 import FamigliaCatalogo from "./pages/FamigliaCatalogo";
 import GenereCatalogo from "./pages/GenereCatalogo";
 
-// MUI
-import { ThemeProvider } from "@mui/material/styles";
-import CssBaseline from "@mui/material/CssBaseline";
-import theme from "./theme";
-
 function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <AuthProvider>
-        <Header />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/indice" element={<Indice />} />
-          <Route path="/contatti" element={<Contatti />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/pianta/:id" element={<Pianta />} />
-          <Route
-            path="/catalogo/famiglia/:nome"
-            element={<FamigliaCatalogo />}
-          />
-          <Route path="/catalogo/genere/:nome" element={<GenereCatalogo />} />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard/nuova"
-            element={
-              <ProtectedRoute>
-                <AggiungiPianta />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard/nuova/:id?"
-            element={
-              <ProtectedRoute>
-                <AggiungiPianta />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="dashboard/categorie"
-            element={
-              <ProtectedRoute>
-                <AggiungiCategoria />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-        <Footer />
-      </AuthProvider>
-    </ThemeProvider>
+    <>
+      <Header />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/indice" element={<Indice />} />
+        <Route path="/contatti" element={<Contatti />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/pianta/:id" element={<Pianta />} />
+        <Route path="/catalogo/famiglia/:nome" element={<FamigliaCatalogo />} />
+        <Route path="/catalogo/genere/:nome" element={<GenereCatalogo />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/nuova/:id?"
+          element={
+            <ProtectedRoute>
+              <AggiungiPianta />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="dashboard/categorie"
+          element={
+            <ProtectedRoute>
+              <AggiungiCategoria />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      <Footer />
+    </>
   );
 }
 

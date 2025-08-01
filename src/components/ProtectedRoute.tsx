@@ -7,11 +7,7 @@ import type { JSX } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
 
-export default function ProtectedRoute({
-  children,
-}: {
-  children: JSX.Element;
-}) {
+const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
   const { isLoggedIn, loading } = useAuth();
 
   if (loading) {
@@ -31,4 +27,6 @@ export default function ProtectedRoute({
   }
 
   return isLoggedIn ? children : <Navigate to="/login" replace />;
-}
+};
+
+export default ProtectedRoute;

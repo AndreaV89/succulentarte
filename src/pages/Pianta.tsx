@@ -23,6 +23,9 @@ import Tooltip from "@mui/material/Tooltip";
 // Type
 import type { DataSingle } from "../types/general";
 
+// Fallback image
+import { FALLBACK_IMAGE_URL } from "../utils/constants";
+
 const Pianta = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -85,9 +88,7 @@ const Pianta = () => {
   const fotoList =
     pianta.fotoUrls && pianta.fotoUrls.length > 0
       ? pianta.fotoUrls
-      : [
-          "https://us.123rf.com/450wm/pixora/pixora2503/pixora250322977/242679423-stylish-navelwort-houseplant-art.jpg?ver=6",
-        ];
+      : [FALLBACK_IMAGE_URL];
 
   const sliderSettings = {
     dots: fotoList.length > 1,
@@ -105,7 +106,6 @@ const Pianta = () => {
         flexGrow: 1,
         mt: "130px",
         mb: "50px",
-        background: "#f8fafc",
         position: "relative",
       }}
     >
@@ -120,7 +120,7 @@ const Pianta = () => {
         <Tooltip title="Torna indietro">
           <Button
             variant="contained"
-            color="success"
+            color="secondary"
             size="large"
             onClick={() => navigate(-1)}
             sx={{
@@ -221,7 +221,6 @@ const Pianta = () => {
             {pianta.descrizione}
           </Typography>
         )}
-        {/* Specifiche */}
         <Box
           sx={{
             mb: 4,
@@ -322,10 +321,7 @@ const Pianta = () => {
               <img
                 src={foto}
                 alt={pianta.specie || "Specie sconosciuta"}
-                onError={(e) =>
-                  (e.currentTarget.src =
-                    "https://us.123rf.com/450wm/pixora/pixora2503/pixora250322977/242679423-stylish-navelwort-houseplant-art.jpg?ver=6")
-                }
+                onError={(e) => (e.currentTarget.src = FALLBACK_IMAGE_URL)}
                 style={{
                   width: "100%",
                   height: "100%",

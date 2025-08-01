@@ -13,6 +13,9 @@ import Grid from "@mui/material/Grid";
 import CardPianta from "../components/CardPianta";
 import Skeleton from "@mui/material/Skeleton";
 
+// Fallback image
+import { FALLBACK_IMAGE_URL } from "../utils/constants";
+
 const Home = (): JSX.Element => {
   const navigate = useNavigate();
   const [famiglie, setFamiglie] = useState<
@@ -91,10 +94,7 @@ const Home = (): JSX.Element => {
               <CardPianta
                 id={famiglia.nome}
                 specie={famiglia.nome}
-                fotoUrl={
-                  famiglia.fotoUrl ||
-                  "https://us.123rf.com/450wm/pixora/pixora2503/pixora250322977/242679423-stylish-navelwort-houseplant-art.jpg?ver=6"
-                }
+                fotoUrl={famiglia.fotoUrl || FALLBACK_IMAGE_URL}
                 onClick={() => navigate(`/catalogo/famiglia/${famiglia.nome}`)}
               />
             </Grid>

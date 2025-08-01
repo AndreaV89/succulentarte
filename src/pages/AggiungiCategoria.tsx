@@ -24,25 +24,27 @@ import {
 
 // MUI
 import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
+import DeleteIcon from "@mui/icons-material/Delete";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import EditIcon from "@mui/icons-material/Edit";
+import IconButton from "@mui/material/IconButton";
+import MenuItem from "@mui/material/MenuItem";
+import Paper from "@mui/material/Paper";
+import Select from "@mui/material/Select";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
 import TableContainer from "@mui/material/TableContainer";
+import TextField from "@mui/material/TextField";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
-import Paper from "@mui/material/Paper";
-import IconButton from "@mui/material/IconButton";
-import DeleteIcon from "@mui/icons-material/Delete";
-import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
-import DialogContent from "@mui/material/DialogContent";
-import DialogActions from "@mui/material/DialogActions";
-import EditIcon from "@mui/icons-material/Edit";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
+import Typography from "@mui/material/Typography";
+import Snackbar from "@mui/material/Snackbar";
+import Alert from "@mui/material/Alert";
 
 const Categorie = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -84,6 +86,12 @@ const Categorie = () => {
   // Modali
   const [showFamigliaModal, setShowFamigliaModal] = useState(false);
   const [showGenereModal, setShowGenereModal] = useState(false);
+
+  // Errori
+  const [notification, setNotification] = useState<{
+    message: string;
+    severity: "success" | "error";
+  } | null>(null);
 
   // Carica famiglie e generi da Firestore
   const fetchData = async () => {
@@ -193,7 +201,11 @@ const Categorie = () => {
       await fetchData();
       resetFamigliaForm();
     } catch (err) {
-      alert("Errore: " + err);
+      setNotification({
+        message: "Si è verificato un errore. Riprova.",
+        severity: "error",
+      });
+      console.error(err);
     }
   };
 
@@ -684,11 +696,7 @@ const Categorie = () => {
           <Button onClick={resetFamigliaForm}>Annulla</Button>
           <Button
             variant="contained"
-            sx={{
-              background: "#FFC107",
-              color: "#222",
-              "&:hover": { background: "#ffb300" },
-            }}
+            color="primary"
             onClick={handleAggiungiFamiglia}
             disabled={!famigliaNome.trim()}
           >
@@ -789,11 +797,7 @@ const Categorie = () => {
           <Button onClick={resetGenereForm}>Annulla</Button>
           <Button
             variant="contained"
-            sx={{
-              background: "#FFC107",
-              color: "#222",
-              "&:hover": { background: "#ffb300" },
-            }}
+            color="primary"
             onClick={handleAggiungiGenere}
             disabled={!genereNome.trim() || !genereFamiglia}
           >
@@ -823,6 +827,20 @@ const Categorie = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      <Snackbar
+        open={!!notification}
+        autoHideDuration={6000}
+        onClose={() => setNotification(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setNotification(null)}
+          severity={notification?.severity}
+          sx={{ width: "100%" }}
+        >
+          {notification?.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

@@ -47,7 +47,7 @@ const FamigliaCatalogo = () => {
         snap.docs.map((doc) => ({
           nome: doc.data().nome,
           descrizione: doc.data().descrizione || "",
-          fotoUrl: doc.data().fotoUrl,
+          fotoUrl: doc.data().fotoThumbnailUrl || doc.data().fotoUrl,
         }))
       );
     };

@@ -19,6 +19,9 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import Link from "@mui/material/Link";
 import Tooltip from "@mui/material/Tooltip";
+import Modal from "@mui/material/Modal";
+import IconButton from "@mui/material/IconButton";
+import CloseIcon from "@mui/icons-material/Close";
 
 // Type
 import type { DataSingle } from "../types/general";
@@ -31,6 +34,8 @@ const Pianta = () => {
   const navigate = useNavigate();
   const [pianta, setPianta] = useState<DataSingle | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPianta = async () => {
@@ -48,6 +53,16 @@ const Pianta = () => {
     };
     fetchPianta();
   }, [id]);
+
+  const handleOpenModal = (imageUrl: string) => {
+    setSelectedImage(imageUrl);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedImage(null);
+  };
 
   if (loading) {
     return (
@@ -85,13 +100,22 @@ const Pianta = () => {
     );
   }
 
-  const fotoList =
+  // Lista per la galleria (media), con fallback alle originali
+  const galleryList =
+    pianta.fotoGalleryUrls && pianta.fotoGalleryUrls.length > 0
+      ? pianta.fotoGalleryUrls
+      : pianta.fotoUrls && pianta.fotoUrls.length > 0
+      ? pianta.fotoUrls
+      : [FALLBACK_IMAGE_URL];
+
+  // Lista per la galleria (catalogo), con fallback alle originali
+  const originalList =
     pianta.fotoUrls && pianta.fotoUrls.length > 0
       ? pianta.fotoUrls
       : [FALLBACK_IMAGE_URL];
 
   const sliderSettings = {
-    dots: fotoList.length > 1,
+    dots: originalList.length > 1,
     infinite: true,
     speed: 400,
     slidesToShow: 1,
@@ -290,51 +314,97 @@ const Pianta = () => {
         </Box>
       </Box>
 
-      <Box
+      {pianta.fotoUrls && pianta.fotoUrls.length > 0 && (
+        <Box
+          sx={{
+            maxWidth: 1100,
+            mx: "auto",
+            mt: 6,
+            mb: 6,
+            p: 2,
+            background: "#fff",
+            borderRadius: 1,
+            boxShadow: "0 2px 16px rgba(0,0,0,0.08)",
+          }}
+        >
+          <Slider {...sliderSettings}>
+            {galleryList.map((url, idx) => (
+              <Box
+                key={idx}
+                sx={{
+                  width: "100%",
+                  height: { xs: 300, md: 550 },
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                  borderRadius: 1,
+                  boxShadow: 1,
+                  background: "#e0e0e0",
+                  cursor: "pointer",
+                }}
+                onClick={() => handleOpenModal(originalList[idx])}
+              >
+                <img
+                  src={url}
+                  alt={`${pianta.specie || "Specie sconosciuta"} - foto ${
+                    idx + 1
+                  }`}
+                  onError={(e) => (e.currentTarget.src = FALLBACK_IMAGE_URL)}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    objectPosition: "center",
+                    borderRadius: 8,
+                    transition: "all 0.3s",
+                  }}
+                />
+              </Box>
+            ))}
+          </Slider>
+        </Box>
+      )}
+      <Modal
+        open={isModalOpen}
+        onClose={handleCloseModal}
+        aria-labelledby="image-modal-title"
+        aria-describedby="image-modal-description"
         sx={{
-          maxWidth: 600,
-          mx: "auto",
-          mt: 6,
-          mb: 6,
-          p: 2,
-          background: "#fff",
-          borderRadius: 4,
-          boxShadow: "0 2px 16px rgba(0,0,0,0.08)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
-        <Slider {...sliderSettings}>
-          {fotoList.map((foto, idx) => (
-            <Box
-              key={idx}
-              sx={{
-                width: "100%",
-                height: { xs: 220, md: 340 },
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                overflow: "hidden",
-                borderRadius: 4,
-                boxShadow: 1,
-                background: "#e0e0e0",
-              }}
-            >
-              <img
-                src={foto}
-                alt={pianta.specie || "Specie sconosciuta"}
-                onError={(e) => (e.currentTarget.src = FALLBACK_IMAGE_URL)}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  objectPosition: "center",
-                  borderRadius: 8,
-                  transition: "all 0.3s",
-                }}
-              />
-            </Box>
-          ))}
-        </Slider>
-      </Box>
+        <Box sx={{ position: "relative", outline: "none" }}>
+          <IconButton
+            aria-label="close"
+            onClick={handleCloseModal}
+            sx={{
+              position: "absolute",
+              top: -40,
+              right: -40,
+              color: "white",
+              background: "rgba(0, 0, 0, 0.5)",
+              "&:hover": {
+                background: "rgba(0, 0, 0, 0.8)",
+              },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+          <img
+            src={selectedImage || ""}
+            alt="Vista ingrandita"
+            style={{
+              maxHeight: "90vh",
+              maxWidth: "90vw",
+              borderRadius: "8px",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+            }}
+          />
+        </Box>
+      </Modal>
     </Box>
   );
 };

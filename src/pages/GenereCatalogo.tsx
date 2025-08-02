@@ -48,7 +48,10 @@ const GenereCatalogo = () => {
         snap.docs.map((doc) => ({
           id: doc.id,
           nome: doc.data().specie,
-          fotoUrl: doc.data().fotoUrls || FALLBACK_IMAGE_URL,
+          fotoUrl:
+            (doc.data().fotoThumbnailUrls && doc.data().fotoThumbnailUrls[0]) ||
+            doc.data().fotoUrls?.[0] ||
+            FALLBACK_IMAGE_URL,
         }))
       );
     };
@@ -144,7 +147,7 @@ const GenereCatalogo = () => {
         ) : (
           specie.map((s) => (
             <Grid
-              size={{ xs: 12, md: 6, lg: 4 }}
+              size={{ xs: 12 }}
               key={s.id}
               sx={{ display: "flex", justifyContent: "center" }}
             >

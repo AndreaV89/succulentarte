@@ -46,7 +46,9 @@ import Typography from "@mui/material/Typography";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
 
-const Categorie = () => {
+import imageCompression from "browser-image-compression";
+
+const AggiungiCategoria = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteType, setDeleteType] = useState<"famiglia" | "genere" | null>(
     null
@@ -58,6 +60,9 @@ const Categorie = () => {
     { nome: string; descrizione: string; fotoUrl?: string }[]
   >([]);
   const [famigliaFotoUrl, setFamigliaFotoUrl] = useState<string | null>(null);
+  const [famigliaFotoThumbnailUrl, setFamigliaFotoThumbnailUrl] = useState<
+    string | null
+  >(null);
   const [famigliaFotoFile, setFamigliaFotoFile] = useState<File | null>(null);
   const [famigliaNome, setFamigliaNome] = useState("");
   const [famigliaDescrizione, setFamigliaDescrizione] = useState("");
@@ -65,6 +70,7 @@ const Categorie = () => {
     nome: string;
     descrizione: string;
     fotoUrl?: string;
+    fotoThumbnailUrl?: string;
   } | null>(null);
 
   // Generi
@@ -72,6 +78,9 @@ const Categorie = () => {
     { nome: string; descrizione: string; famiglia: string; fotoUrl?: string }[]
   >([]);
   const [genereFotoUrl, setGenereFotoUrl] = useState<string | null>(null);
+  const [genereFotoThumbnailUrl, setGenereFotoThumbnailUrl] = useState<
+    string | null
+  >(null);
   const [genereFotoFile, setGenereFotoFile] = useState<File | null>(null);
   const [genereNome, setGenereNome] = useState("");
   const [genereDescrizione, setGenereDescrizione] = useState("");
@@ -80,6 +89,7 @@ const Categorie = () => {
     nome: string;
     descrizione: string;
     fotoUrl?: string;
+    fotoThumbnailUrl?: string;
     famiglia: string;
   } | null>(null);
 
@@ -101,6 +111,7 @@ const Categorie = () => {
         nome: doc.data().nome,
         descrizione: doc.data().descrizione || "",
         fotoUrl: doc.data().fotoUrl,
+        fotoThumbnailUrl: doc.data().fotoThumbnailUrl,
       }))
     );
     const genSnap = await getDocs(collection(db, "generi"));
@@ -110,6 +121,7 @@ const Categorie = () => {
         descrizione: doc.data().descrizione || "",
         famiglia: doc.data().famiglia || "",
         fotoUrl: doc.data().fotoUrl,
+        fotoThumbnailUrl: doc.data().fotoThumbnailUrl,
       }))
     );
   };
@@ -124,6 +136,7 @@ const Categorie = () => {
     setFamigliaNome("");
     setFamigliaDescrizione("");
     setFamigliaFotoUrl(null);
+    setFamigliaFotoThumbnailUrl(null);
     setFamigliaFotoFile(null);
     setShowFamigliaModal(false);
   };
@@ -133,6 +146,7 @@ const Categorie = () => {
     setGenereDescrizione("");
     setGenereFamiglia("");
     setGenereFotoUrl(null);
+    setGenereFotoThumbnailUrl(null);
     setGenereFotoFile(null);
     setShowGenereModal(false);
   };
@@ -142,17 +156,23 @@ const Categorie = () => {
     if (!famigliaNome.trim()) return;
     try {
       let fotoUrl = famigliaFotoUrl || "";
+      let fotoThumbnailUrl = famigliaFotoThumbnailUrl || "";
       const storage = getStorage();
 
       // Se l'utente ha rimosso una foto esistente
       if (famigliaEdit?.fotoUrl && !famigliaFotoUrl && !famigliaFotoFile) {
         const fotoRef = ref(storage, famigliaEdit.fotoUrl);
-        try {
-          await deleteObject(fotoRef);
-        } catch (error) {
-          console.warn("La foto da eliminare non è stata trovata:", error);
+        await deleteObject(fotoRef).catch((err) =>
+          console.warn("Foto originale non trovata", err)
+        );
+        if (famigliaEdit.fotoThumbnailUrl) {
+          const thumbRef = ref(storage, famigliaEdit.fotoThumbnailUrl);
+          await deleteObject(thumbRef).catch((err) =>
+            console.warn("Miniatura non trovata", err)
+          );
         }
-        fotoUrl = ""; // Assicura che l'URL venga rimosso da Firestore
+        fotoUrl = "";
+        fotoThumbnailUrl = "";
       }
 
       // Se l'utente ha caricato una nuova foto
@@ -160,24 +180,48 @@ const Categorie = () => {
         // Se c'era una vecchia foto, eliminala prima di caricare la nuova
         if (famigliaEdit?.fotoUrl) {
           const fotoRef = ref(storage, famigliaEdit.fotoUrl);
-          try {
-            await deleteObject(fotoRef);
-          } catch (error) {
-            console.warn("La vecchia foto non è stata trovata:", error);
-          }
+          await deleteObject(fotoRef).catch((err) =>
+            console.warn("Vecchia foto non trovata", err)
+          );
         }
-        const storageRef = ref(
-          storage,
-          `categorie/famiglie/${Date.now()}_${famigliaFotoFile.name}`
-        );
+        if (famigliaEdit?.fotoThumbnailUrl) {
+          const thumbRef = ref(storage, famigliaEdit.fotoThumbnailUrl);
+          await deleteObject(thumbRef).catch((err) =>
+            console.warn("Vecchia miniatura non trovata", err)
+          );
+        }
+
+        const timestamp = Date.now();
+        const baseFileName = `${timestamp}_${famigliaFotoFile.name}`;
+
+        // Upload originale
+        const storageRef = ref(storage, `categorie/famiglie/${baseFileName}`);
         await uploadBytes(storageRef, famigliaFotoFile);
         fotoUrl = await getDownloadURL(storageRef);
+
+        // Crea e upload miniatura
+        const thumbOptions = {
+          maxSizeMB: 0.1,
+          maxWidthOrHeight: 400,
+          useWebWorker: true,
+        };
+        const compressedFile = await imageCompression(
+          famigliaFotoFile,
+          thumbOptions
+        );
+        const thumbRef = ref(
+          storage,
+          `categorie/famiglie/thumb_${baseFileName}`
+        );
+        await uploadBytes(thumbRef, compressedFile);
+        fotoThumbnailUrl = await getDownloadURL(thumbRef);
       }
 
       const data = {
         nome: famigliaNome.trim(),
         descrizione: famigliaDescrizione.trim(),
         fotoUrl: fotoUrl,
+        fotoThumbnailUrl: fotoThumbnailUrl,
       };
 
       if (famigliaEdit) {
@@ -214,11 +258,13 @@ const Categorie = () => {
     nome: string;
     descrizione: string;
     fotoUrl?: string;
+    fotoThumbnailUrl?: string;
   }) => {
     setFamigliaEdit(famiglia);
     setFamigliaNome(famiglia.nome);
     setFamigliaDescrizione(famiglia.descrizione);
     setFamigliaFotoUrl(famiglia.fotoUrl || null);
+    setFamigliaFotoThumbnailUrl(famiglia.fotoThumbnailUrl || null);
     setShowFamigliaModal(true);
   };
 
@@ -226,6 +272,7 @@ const Categorie = () => {
   const handleRimuoviFotoFamiglia = () => {
     setFamigliaFotoFile(null);
     setFamigliaFotoUrl(null);
+    setFamigliaFotoThumbnailUrl(null);
   };
 
   // Aggiungi/modifica genere
@@ -233,17 +280,23 @@ const Categorie = () => {
     if (!genereNome.trim() || !genereFamiglia) return;
     try {
       let fotoUrl = genereFotoUrl || "";
+      let fotoThumbnailUrl = genereFotoThumbnailUrl || "";
       const storage = getStorage();
 
       // Se l'utente ha rimosso una foto esistente
       if (genereEdit?.fotoUrl && !genereFotoUrl && !genereFotoFile) {
         const fotoRef = ref(storage, genereEdit.fotoUrl);
-        try {
-          await deleteObject(fotoRef);
-        } catch (error) {
-          console.warn("La foto da eliminare non è stata trovata:", error);
+        await deleteObject(fotoRef).catch((err) =>
+          console.warn("Foto originale non trovata", err)
+        );
+        if (genereEdit.fotoThumbnailUrl) {
+          const thumbRef = ref(storage, genereEdit.fotoThumbnailUrl);
+          await deleteObject(thumbRef).catch((err) =>
+            console.warn("Miniatura non trovata", err)
+          );
         }
-        fotoUrl = ""; // Assicura che l'URL venga rimosso da Firestore
+        fotoUrl = "";
+        fotoThumbnailUrl = "";
       }
 
       // Se l'utente ha caricato una nuova foto
@@ -251,25 +304,46 @@ const Categorie = () => {
         // Se c'era una vecchia foto, eliminala prima di caricare la nuova
         if (genereEdit?.fotoUrl) {
           const fotoRef = ref(storage, genereEdit.fotoUrl);
-          try {
-            await deleteObject(fotoRef);
-          } catch (error) {
-            console.warn("La vecchia foto non è stata trovata:", error);
-          }
+          await deleteObject(fotoRef).catch((err) =>
+            console.warn("Vecchia foto non trovata", err)
+          );
         }
-        const storageRef = ref(
-          storage,
-          `categorie/generi/${Date.now()}_${genereFotoFile.name}`
-        );
+        if (genereEdit?.fotoThumbnailUrl) {
+          const thumbRef = ref(storage, genereEdit.fotoThumbnailUrl);
+          await deleteObject(thumbRef).catch((err) =>
+            console.warn("Vecchia miniatura non trovata", err)
+          );
+        }
+
+        const timestamp = Date.now();
+        const baseFileName = `${timestamp}_${genereFotoFile.name}`;
+
+        // Upload originale
+        const storageRef = ref(storage, `categorie/generi/${baseFileName}`);
         await uploadBytes(storageRef, genereFotoFile);
         fotoUrl = await getDownloadURL(storageRef);
+
+        // Crea e upload miniatura
+        const thumbOptions = {
+          maxSizeMB: 0.1,
+          maxWidthOrHeight: 400,
+          useWebWorker: true,
+        };
+        const compressedFile = await imageCompression(
+          genereFotoFile,
+          thumbOptions
+        );
+        const thumbRef = ref(storage, `categorie/generi/thumb_${baseFileName}`);
+        await uploadBytes(thumbRef, compressedFile);
+        fotoThumbnailUrl = await getDownloadURL(thumbRef);
       }
 
       const data = {
         nome: genereNome.trim(),
         descrizione: genereDescrizione.trim(),
         famiglia: genereFamiglia,
-        fotoUrl: fotoUrl, // <-- AGGIUNTO
+        fotoUrl: fotoUrl,
+        fotoThumbnailUrl: fotoThumbnailUrl,
       };
 
       if (genereEdit) {
@@ -300,12 +374,14 @@ const Categorie = () => {
     descrizione: string;
     famiglia: string;
     fotoUrl?: string;
+    fotoThumbnailUrl?: string;
   }) => {
     setGenereEdit(genere);
     setGenereNome(genere.nome);
     setGenereDescrizione(genere.descrizione);
     setGenereFamiglia(genere.famiglia || "");
     setGenereFotoUrl(genere.fotoUrl || null);
+    setGenereFotoThumbnailUrl(genere.fotoThumbnailUrl || null);
     setShowGenereModal(true);
   };
 
@@ -313,6 +389,7 @@ const Categorie = () => {
   const handleRimuoviFotoGenere = () => {
     setGenereFotoFile(null);
     setGenereFotoUrl(null);
+    setGenereFotoThumbnailUrl(null);
   };
 
   // Elimina famiglia
@@ -325,19 +402,22 @@ const Categorie = () => {
 
       const docToDelete = snap.docs[0];
       const fotoUrl = docToDelete.data().fotoUrl;
+      const fotoThumbnailUrl = docToDelete.data().fotoThumbnailUrl;
 
       // Se esiste una foto, eliminala prima da Storage
       if (fotoUrl) {
         const storage = getStorage();
         const fotoRef = ref(storage, fotoUrl);
-        try {
-          await deleteObject(fotoRef);
-        } catch (storageError) {
-          console.warn(
-            "Impossibile eliminare la foto da Storage (potrebbe essere già stata rimossa):",
-            storageError
-          );
-        }
+        await deleteObject(fotoRef).catch((err) =>
+          console.warn("Foto non trovata", err)
+        );
+      }
+      if (fotoThumbnailUrl) {
+        const storage = getStorage();
+        const thumbRef = ref(storage, fotoThumbnailUrl);
+        await deleteObject(thumbRef).catch((err) =>
+          console.warn("Miniatura non trovata", err)
+        );
       }
 
       // Ora elimina il documento da Firestore
@@ -358,19 +438,22 @@ const Categorie = () => {
 
       const docToDelete = snap.docs[0];
       const fotoUrl = docToDelete.data().fotoUrl;
+      const fotoThumbnailUrl = docToDelete.data().fotoThumbnailUrl;
 
       // Se esiste una foto, eliminala prima da Storage
       if (fotoUrl) {
         const storage = getStorage();
         const fotoRef = ref(storage, fotoUrl);
-        try {
-          await deleteObject(fotoRef);
-        } catch (storageError) {
-          console.warn(
-            "Impossibile eliminare la foto da Storage (potrebbe essere già stata rimossa):",
-            storageError
-          );
-        }
+        await deleteObject(fotoRef).catch((err) =>
+          console.warn("Foto non trovata", err)
+        );
+      }
+      if (fotoThumbnailUrl) {
+        const storage = getStorage();
+        const thumbRef = ref(storage, fotoThumbnailUrl);
+        await deleteObject(thumbRef).catch((err) =>
+          console.warn("Miniatura non trovata", err)
+        );
       }
 
       // Ora elimina il documento da Firestore
@@ -672,7 +755,7 @@ const Categorie = () => {
                   src={
                     famigliaFotoFile
                       ? URL.createObjectURL(famigliaFotoFile)
-                      : famigliaFotoUrl || ""
+                      : famigliaFotoThumbnailUrl || famigliaFotoUrl || ""
                   }
                   sx={{
                     width: 100,
@@ -757,7 +840,7 @@ const Categorie = () => {
                   src={
                     genereFotoFile
                       ? URL.createObjectURL(genereFotoFile)
-                      : genereFotoUrl || ""
+                      : genereFotoThumbnailUrl || genereFotoUrl || ""
                   }
                   sx={{
                     width: 100,
@@ -845,4 +928,4 @@ const Categorie = () => {
   );
 };
 
-export default Categorie;
+export default AggiungiCategoria;

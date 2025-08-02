@@ -6,8 +6,10 @@ export interface DataSingle {
   descrizione: string;
   esposizione: string;
   famiglia: string;
+   famigliaId: string;
   forma: string;
   genere: string;
+   genereId: string;
   habitat: string;
   origine: string;
   sinonimi: string;
@@ -15,5 +17,8 @@ export interface DataSingle {
   specie: string;
   temperaturaMinima: string;
   varieta: string;
-  fotoUrls: Array<string>
+  fotoUrls: string[];
+  fotoThumbnailUrls: string[];
+  fotoGalleryUrls?: string[];
+
   }

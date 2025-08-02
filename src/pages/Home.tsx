@@ -30,7 +30,7 @@ const Home = (): JSX.Element => {
       setFamiglie(
         snap.docs.map((doc) => ({
           nome: doc.data().nome,
-          fotoUrl: doc.data().fotoUrl,
+          fotoUrl: doc.data().fotoThumbnailUrl || doc.data().fotoUrl,
         }))
       );
       setLoading(false);

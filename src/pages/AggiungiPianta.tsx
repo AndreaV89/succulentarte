@@ -30,6 +30,8 @@ import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
 import FormControl from "@mui/material/FormControl";
 
+import imageCompression from "browser-image-compression";
+
 const storage = getStorage();
 
 const AggiungiPianta = () => {
@@ -51,6 +53,8 @@ const AggiungiPianta = () => {
   const [bagnature, setBagnature] = useState<string>("");
   const [temperaturaMinima, setTemperaturaMinima] = useState<string>("");
   const [fotoUrls, setFotoUrls] = useState<string[]>([]);
+  const [fotoThumbnailUrls, setFotoThumbnailUrls] = useState<string[]>([]);
+  const [fotoGalleryUrls, setFotoGalleryUrls] = useState<string[]>([]);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -108,6 +112,8 @@ const AggiungiPianta = () => {
           setBagnature(data.bagnature || "");
           setTemperaturaMinima(data.temperaturaMinima || "");
           setFotoUrls(data.fotoUrls || []);
+          setFotoThumbnailUrls(data.fotoThumbnailUrls || []);
+          setFotoGalleryUrls(data.fotoGalleryUrls || []);
         }
       };
       fetchPianta();
@@ -118,7 +124,6 @@ const AggiungiPianta = () => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
 
-      // Carica subito ogni file su Firebase Storage
       const piantaDocId = id;
       if (!piantaDocId) {
         setError("Devi prima salvare la pianta per poter aggiungere foto.");
@@ -127,40 +132,113 @@ const AggiungiPianta = () => {
       }
 
       const uploadPromises = files.map(async (file) => {
+        const timestamp = Date.now();
+        const randomSuffix = Math.random().toString(36).substring(2, 8);
+        const baseFileName = `${timestamp}_${randomSuffix}_${file.name}`;
+
+        // 1. Upload immagine originale
         const storageRef = ref(
           storage,
-          `piante/${piantaDocId}/${Date.now()}_${file.name}`
+          `piante/${piantaDocId}/${baseFileName}`
         );
         await uploadBytes(storageRef, file);
-        return await getDownloadURL(storageRef);
+        const originalUrl = await getDownloadURL(storageRef);
+
+        // 2. Crea e upload miniatura per catalogo (piccola)
+        const thumbOptions = {
+          maxSizeMB: 0.1, // 100KB
+          maxWidthOrHeight: 400,
+          useWebWorker: true,
+        };
+        const compressedFile = await imageCompression(file, thumbOptions);
+        const thumbRef = ref(
+          storage,
+          `piante/${piantaDocId}/thumb_${baseFileName}`
+        );
+        await uploadBytes(thumbRef, compressedFile);
+        const thumbnailUrl = await getDownloadURL(thumbRef);
+
+        // 3. Crea e upload miniatura per galleria (media)
+        const galleryOptions = {
+          maxSizeMB: 0.5,
+          maxWidthOrHeight: 1200,
+          useWebWorker: true,
+        };
+        const compressedGalleryFile = await imageCompression(
+          file,
+          galleryOptions
+        );
+        const galleryRef = ref(
+          storage,
+          `piante/${piantaDocId}/gallery_${baseFileName}`
+        );
+        await uploadBytes(galleryRef, compressedGalleryFile);
+        const galleryUrl = await getDownloadURL(galleryRef);
+
+        return { originalUrl, thumbnailUrl, galleryUrl };
       });
 
-      const uploadedUrls = await Promise.all(uploadPromises);
+      const uploadedSets = await Promise.all(uploadPromises);
+
+      const updatedOriginalUrls = [
+        ...fotoUrls,
+        ...uploadedSets.map((p) => p.originalUrl),
+      ];
+      const updatedThumbnailUrls = [
+        ...fotoThumbnailUrls,
+        ...uploadedSets.map((p) => p.thumbnailUrl),
+      ];
+      const updatedGalleryUrls = [
+        ...fotoGalleryUrls,
+        ...uploadedSets.map((p) => p.galleryUrl),
+      ];
 
       // Aggiorna lo stato locale
-      setFotoUrls((prev) => [...prev, ...uploadedUrls]);
+      setFotoUrls(updatedOriginalUrls);
+      setFotoThumbnailUrls(updatedThumbnailUrls);
+      setFotoGalleryUrls(updatedGalleryUrls);
 
       // Aggiorna subito Firestore aggiungendo le nuove foto all'array
       const docRef = doc(db, "piante", piantaDocId);
       await updateDoc(docRef, {
-        fotoUrls: [...fotoUrls, ...uploadedUrls],
+        fotoUrls: updatedOriginalUrls,
+        fotoThumbnailUrls: updatedThumbnailUrls,
+        fotoGalleryUrls: updatedGalleryUrls,
       });
     }
   };
 
+  // Gestisce la rimozione delle foto
   const handleRemoveFoto = async (idx: number) => {
     const urlToRemove = fotoUrls[idx];
+    const thumbUrlToRemove = fotoThumbnailUrls?.[idx];
+    const galleryUrlToRemove = fotoGalleryUrls?.[idx];
     const piantaDocId = id;
 
     // 1. Rimuovi la foto da Firebase Storage
     try {
-      // Ricava il path dal downloadURL
-      const path = urlToRemove
+      // Rimuovi originale
+      const originalPath = urlToRemove
         .replace(/^https:\/\/[^/]+\/o\//, "")
         .replace(/\?.*$/, "")
         .replace(/%2F/g, "/");
-      const storageRef = ref(storage, path);
-      await deleteObject(storageRef);
+      const originalStorageRef = ref(storage, originalPath);
+      await deleteObject(originalStorageRef);
+
+      // Rimuovi miniatura catalogo (se esiste)
+      if (thumbUrlToRemove) {
+        const thumbPath = thumbUrlToRemove
+          .replace(/^https:\/\/[^/]+\/o\//, "")
+          .replace(/\?.*$/, "")
+          .replace(/%2F/g, "/");
+        const thumbStorageRef = ref(storage, thumbPath);
+        await deleteObject(thumbStorageRef);
+      }
+      // Rimuovi miniatura galleria (se esiste)
+      if (galleryUrlToRemove) {
+        const galleryRef = ref(storage, galleryUrlToRemove);
+        await deleteObject(galleryRef);
+      }
     } catch (err: unknown) {
       console.log(err);
       setError(
@@ -175,14 +253,23 @@ const AggiungiPianta = () => {
     }
 
     // 2. Aggiorna lo stato locale
-    setFotoUrls((prev) => prev.filter((_, i) => i !== idx));
+    const nuoveFoto = fotoUrls.filter((_, i) => i !== idx);
+    const nuoveThumb = fotoThumbnailUrls.filter((_, i) => i !== idx);
+    const nuoveGallery = fotoGalleryUrls.filter((_, i) => i !== idx);
+
+    setFotoUrls(nuoveFoto);
+    setFotoThumbnailUrls(nuoveThumb);
+    setFotoGalleryUrls(nuoveGallery);
 
     // 3. Aggiorna Firestore rimuovendo l'URL dall'array
     if (piantaDocId) {
       const docRef = doc(db, "piante", piantaDocId);
-      const nuoveFoto = fotoUrls.filter((_, i) => i !== idx);
       try {
-        await updateDoc(docRef, { fotoUrls: nuoveFoto });
+        await updateDoc(docRef, {
+          fotoUrls: nuoveFoto,
+          fotoThumbnailUrls: nuoveThumb,
+          fotoGalleryUrls: nuoveGallery,
+        });
       } catch (err: unknown) {
         setError(
           err && typeof err === "object" && "message" in err
@@ -204,13 +291,9 @@ const AggiungiPianta = () => {
     setSuccess(null);
     setError(null);
     setSaving(true);
-    let piantaDocId = id;
 
     try {
-      if (!piantaDocId) {
-        const docRef = await addDoc(collection(db, "piante"), {});
-        piantaDocId = docRef.id;
-      }
+      // Dati base della pianta (senza foto)
       const piantaData = {
         specie: specie,
         famiglia: famiglia,
@@ -227,13 +310,29 @@ const AggiungiPianta = () => {
         esposizione: esposizione,
         bagnature: bagnature,
         temperaturaMinima: temperaturaMinima,
-        fotoUrls: fotoUrls,
         updatedAt: serverTimestamp(),
       };
-      await updateDoc(doc(db, "piante", piantaDocId), piantaData);
-      setSuccess("Salvataggio avvenuto con successo!");
-      setTimeout(() => setSuccess(null), 2000);
-      setTimeout(() => navigate(`/dashboard/nuova/${piantaDocId}`), 1200);
+
+      if (id) {
+        // --- MODALITÀ MODIFICA ---
+        // Aggiorna il documento esistente con tutti i dati, incluse le foto
+        const docRef = doc(db, "piante", id);
+        await updateDoc(docRef, {
+          ...piantaData,
+          fotoUrls: fotoUrls,
+          fotoThumbnailUrls: fotoThumbnailUrls,
+          fotoGalleryUrls: fotoGalleryUrls,
+        });
+        setSuccess("Salvataggio avvenuto con successo!");
+        setTimeout(() => setSuccess(null), 2000);
+      } else {
+        // --- MODALITÀ CREAZIONE ---
+        // Crea un nuovo documento solo con i dati testuali
+        const docRef = await addDoc(collection(db, "piante"), piantaData);
+        setSuccess("Pianta creata! Ora puoi aggiungere le foto.");
+        // Reindirizza alla pagina di modifica della pianta appena creata
+        setTimeout(() => navigate(`/dashboard/nuova/${docRef.id}`), 1500);
+      }
     } catch (err: unknown) {
       setError(
         err && typeof err === "object" && "message" in err
@@ -427,6 +526,11 @@ const AggiungiPianta = () => {
           >
             Galleria
           </Typography>
+          {!id && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Salva la pianta per poter aggiungere le foto.
+            </Alert>
+          )}
           <Box sx={{ display: "flex", alignItems: "flex-start", gap: 3 }}>
             {fotoUrls.length > 0 && (
               <Box
@@ -436,7 +540,7 @@ const AggiungiPianta = () => {
                   flexWrap: "wrap",
                 }}
               >
-                {fotoUrls.map((url, idx) => (
+                {fotoThumbnailUrls.map((url, idx) => (
                   <Box
                     key={idx}
                     sx={{ position: "relative", display: "inline-block" }}
@@ -482,6 +586,7 @@ const AggiungiPianta = () => {
               mt: 3,
               alignSelf: "flex-start",
             }}
+            disabled={!id}
           >
             Carica foto
             <input

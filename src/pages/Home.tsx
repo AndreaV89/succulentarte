@@ -19,7 +19,7 @@ import { FALLBACK_IMAGE_URL } from "../utils/constants";
 const Home = (): JSX.Element => {
   const navigate = useNavigate();
   const [famiglie, setFamiglie] = useState<
-    { nome: string; fotoUrl?: string }[]
+    { id: string; nome: string; fotoUrl?: string }[]
   >([]);
   const [loading, setLoading] = useState(true);
 
@@ -29,6 +29,7 @@ const Home = (): JSX.Element => {
       const snap = await getDocs(collection(db, "famiglie"));
       setFamiglie(
         snap.docs.map((doc) => ({
+          id: doc.id,
           nome: doc.data().nome,
           fotoUrl: doc.data().fotoThumbnailUrl || doc.data().fotoUrl,
         }))
@@ -87,15 +88,15 @@ const Home = (): JSX.Element => {
         ) : (
           famiglie.map((famiglia) => (
             <Grid
-              key={famiglia.nome}
+              key={famiglia.id}
               size={{ xs: 12, md: 6, lg: 4 }}
               sx={{ display: "flex", justifyContent: "center" }}
             >
               <CardPianta
-                id={famiglia.nome}
+                id={famiglia.id}
                 specie={famiglia.nome}
                 fotoUrl={famiglia.fotoUrl || FALLBACK_IMAGE_URL}
-                onClick={() => navigate(`/catalogo/famiglia/${famiglia.nome}`)}
+                onClick={() => navigate(`/catalogo/famiglia/${famiglia.id}`)}
               />
             </Grid>
           ))

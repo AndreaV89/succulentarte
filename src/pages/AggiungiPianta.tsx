@@ -38,8 +38,8 @@ const AggiungiPianta = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [specie, setSpecie] = useState<string>("");
-  const [famiglia, setFamiglia] = useState<string>("");
-  const [genere, setGenere] = useState<string>("");
+  const [famigliaId, setFamigliaId] = useState<string>("");
+  const [genereId, setGenereId] = useState<string>("");
   const [sinonimi, setSinonimi] = useState<string>("");
   const [sottospecie, setSottospecie] = useState<string>("");
   const [varieta, setVarieta] = useState<string>("");
@@ -58,35 +58,45 @@ const AggiungiPianta = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [famiglie, setFamiglie] = useState<string[]>([]);
-  const [tuttiIGeneri, setTuttiIGeneri] = useState<
-    { nome: string; famiglia: string }[]
+  const [allFamiglie, setAllFamiglie] = useState<
+    { id: string; nome: string }[]
   >([]);
-  const [generi, setGeneri] = useState<string[]>([]);
+  const [allGeneri, setAllGeneri] = useState<
+    { id: string; nome: string; famigliaId: string }[]
+  >([]);
+  const [filteredGeneri, setFilteredGeneri] = useState<
+    { id: string; nome: string }[]
+  >([]);
 
   useEffect(() => {
     const fetchCategorie = async () => {
       const famSnap = await getDocs(collection(db, "famiglie"));
-      setFamiglie(famSnap.docs.map((doc) => doc.data().nome));
+      setAllFamiglie(
+        famSnap.docs.map((doc) => ({ id: doc.id, nome: doc.data().nome }))
+      );
       const genSnap = await getDocs(collection(db, "generi"));
-      const generiArr = genSnap.docs.map((doc) => ({
-        nome: doc.data().nome,
-        famiglia: doc.data().famiglia,
-      }));
-      setTuttiIGeneri(generiArr);
+      setAllGeneri(
+        genSnap.docs.map(
+          (doc) =>
+            ({ id: doc.id, ...doc.data() } as {
+              id: string;
+              nome: string;
+              famigliaId: string;
+            })
+        )
+      );
     };
+
     fetchCategorie();
   }, []);
 
   useEffect(() => {
-    if (famiglia) {
-      setGeneri(
-        tuttiIGeneri.filter((g) => g.famiglia === famiglia).map((g) => g.nome)
-      );
+    if (famigliaId) {
+      setFilteredGeneri(allGeneri.filter((g) => g.famigliaId === famigliaId));
     } else {
-      setGeneri([]);
+      setFilteredGeneri([]);
     }
-  }, [famiglia, tuttiIGeneri]);
+  }, [famigliaId, allGeneri]);
 
   useEffect(() => {
     if (id) {
@@ -97,8 +107,8 @@ const AggiungiPianta = () => {
         if (docSnap.exists()) {
           const data = docSnap.data();
           setSpecie(data.specie || "");
-          setFamiglia(data.famiglia || "");
-          setGenere(data.genere || "");
+          setFamigliaId(data.famigliaId || "");
+          setGenereId(data.genereId || "");
           setSinonimi(data.sinonimi || "");
           setSottospecie(data.sottospecie || "");
           setVarieta(data.varieta || "");
@@ -296,8 +306,8 @@ const AggiungiPianta = () => {
       // Dati base della pianta (senza foto)
       const piantaData = {
         specie: specie,
-        famiglia: famiglia,
-        genere: genere,
+        famigliaId: famigliaId,
+        genereId: genereId,
         sinonimi: sinonimi,
         sottospecie: sottospecie,
         varieta: varieta,
@@ -380,17 +390,17 @@ const AggiungiPianta = () => {
           <InputLabel id="famiglia-label">Famiglia</InputLabel>
           <Select
             labelId="famiglia-label"
-            value={famiglia}
+            value={famigliaId}
             label="Famiglia"
-            onChange={(e) => setFamiglia(e.target.value)}
+            onChange={(e) => setFamigliaId(e.target.value)}
             sx={{ textAlign: "left" }}
           >
             <MenuItem disabled value="">
               <em>Seleziona famiglia</em>
             </MenuItem>
-            {famiglie.map((f) => (
-              <MenuItem key={f} value={f}>
-                {f}
+            {allFamiglie.map((f) => (
+              <MenuItem key={f.id} value={f.id}>
+                {f.nome}
               </MenuItem>
             ))}
           </Select>
@@ -399,17 +409,18 @@ const AggiungiPianta = () => {
           <InputLabel id="genere-label">Genere</InputLabel>
           <Select
             labelId="genere-label"
-            value={genere}
+            value={genereId}
             label="Genere"
-            onChange={(e) => setGenere(e.target.value)}
+            onChange={(e) => setGenereId(e.target.value)}
+            disabled={!famigliaId}
             sx={{ textAlign: "left" }}
           >
             <MenuItem disabled value="">
               <em>Seleziona genere</em>
             </MenuItem>
-            {generi.map((g) => (
-              <MenuItem key={g} value={g}>
-                {g}
+            {filteredGeneri.map((g) => (
+              <MenuItem key={g.id} value={g.id}>
+                {g.nome}
               </MenuItem>
             ))}
           </Select>
@@ -455,7 +466,6 @@ const AggiungiPianta = () => {
           value={descrittorePianta}
           onChange={(e) => setDescrittorePianta(e.target.value)}
           fullWidth
-          required
           sx={{ mb: 2 }}
         />
         <TextField
@@ -463,7 +473,6 @@ const AggiungiPianta = () => {
           value={descrizione}
           onChange={(e) => setDescrizione(e.target.value)}
           fullWidth
-          required
           multiline
           rows={8}
           sx={{ mb: 2 }}
@@ -473,7 +482,6 @@ const AggiungiPianta = () => {
           value={origine}
           onChange={(e) => setOrigine(e.target.value)}
           fullWidth
-          required
           sx={{ mb: 2 }}
         />
         <TextField
@@ -481,7 +489,6 @@ const AggiungiPianta = () => {
           value={habitat}
           onChange={(e) => setHabitat(e.target.value)}
           fullWidth
-          required
           sx={{ mb: 2 }}
         />
         <TextField
@@ -489,7 +496,6 @@ const AggiungiPianta = () => {
           value={esposizione}
           onChange={(e) => setEsposizione(e.target.value)}
           fullWidth
-          required
           sx={{ mb: 2 }}
         />
         <TextField
@@ -497,7 +503,6 @@ const AggiungiPianta = () => {
           value={bagnature}
           onChange={(e) => setBagnature(e.target.value)}
           fullWidth
-          required
           sx={{ mb: 2 }}
         />
         <TextField
@@ -505,7 +510,6 @@ const AggiungiPianta = () => {
           value={temperaturaMinima}
           onChange={(e) => setTemperaturaMinima(e.target.value)}
           fullWidth
-          required
           sx={{ mb: 2 }}
         />
         <Box
@@ -625,7 +629,7 @@ const AggiungiPianta = () => {
             sx={{
               width: "30%",
             }}
-            disabled={saving || !specie || !famiglia || !genere}
+            disabled={saving || !specie || !famigliaId || !genereId}
           >
             {saving ? "Salvataggio..." : "Salva"}
           </Button>

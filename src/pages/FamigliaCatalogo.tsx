@@ -4,7 +4,14 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 // Firebase
-import { getDocs, collection, query, where } from "firebase/firestore";
+import {
+  getDocs,
+  collection,
+  query,
+  where,
+  getDoc,
+  doc,
+} from "firebase/firestore";
 import { db } from "../../firebaseConfig";
 
 // MUI
@@ -19,40 +26,77 @@ import Skeleton from "@mui/material/Skeleton";
 // Fallback image
 import { FALLBACK_IMAGE_URL } from "../utils/constants";
 
+interface Famiglia {
+  id: string;
+  nome: string;
+  descrizione: string;
+}
+
+interface Genere {
+  id: string;
+  nome: string;
+  fotoUrl?: string;
+}
+
 const FamigliaCatalogo = () => {
   const navigate = useNavigate();
-  const { nome } = useParams<{ nome: string }>();
-  const [descrizione, setDescrizione] = useState<string>("");
-  const [generi, setGeneri] = useState<
-    { nome: string; descrizione: string; fotoUrl?: string }[]
-  >([]);
+  const { famigliaId } = useParams<{ famigliaId: string }>();
+  const [famiglia, setFamiglia] = useState<Famiglia | null>(null);
+  const [generi, setGeneri] = useState<Genere[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
-    const fetchFamiglia = async () => {
-      const snap = await getDocs(
-        query(collection(db, "famiglie"), where("nome", "==", nome))
-      );
+    if (!famigliaId) {
+      setLoading(false);
+      return;
+    }
 
-      if (!snap.empty) {
-        setDescrizione(snap.docs[0].data().descrizione || "");
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Esegui le query per la famiglia e i generi in parallelo
+        const famigliaDocRef = doc(db, "famiglie", famigliaId);
+        const generiQuery = query(
+          collection(db, "generi"),
+          where("famigliaId", "==", famigliaId)
+        );
+
+        const [famigliaDocSnap, generiSnap] = await Promise.all([
+          getDoc(famigliaDocRef),
+          getDocs(generiQuery),
+        ]);
+
+        // Elabora i risultati
+        if (famigliaDocSnap.exists()) {
+          setFamiglia({
+            id: famigliaDocSnap.id,
+            ...famigliaDocSnap.data(),
+          } as Famiglia);
+        } else {
+          console.error("Nessuna famiglia trovata con questo ID:", famigliaId);
+          setFamiglia(null); // Pulisci lo stato se non trovata
+        }
+
+        setGeneri(
+          generiSnap.docs.map((doc) => ({
+            id: doc.id,
+            nome: doc.data().nome,
+            fotoUrl: doc.data().fotoThumbnailUrl || doc.data().fotoUrl,
+          }))
+        );
+      } catch (error) {
+        console.error("Errore durante il recupero dei dati:", error);
+        // Resetta gli stati in caso di errore
+        setFamiglia(null);
+        setGeneri([]);
+      } finally {
+        // Questo blocco viene eseguito SEMPRE, garantendo che il caricamento termini
+        setLoading(false);
       }
     };
-    const fetchGeneri = async () => {
-      const snap = await getDocs(
-        query(collection(db, "generi"), where("famiglia", "==", nome))
-      );
-      setGeneri(
-        snap.docs.map((doc) => ({
-          nome: doc.data().nome,
-          descrizione: doc.data().descrizione || "",
-          fotoUrl: doc.data().fotoThumbnailUrl || doc.data().fotoUrl,
-        }))
-      );
-    };
-    Promise.all([fetchFamiglia(), fetchGeneri()]).then(() => setLoading(false));
-  }, [nome]);
+
+    fetchData();
+  }, [famigliaId]);
 
   return (
     <Box
@@ -62,6 +106,7 @@ const FamigliaCatalogo = () => {
         mb: "50px",
         maxWidth: "1200px",
         mx: "auto",
+        px: 2,
       }}
     >
       {loading ? (
@@ -76,25 +121,27 @@ const FamigliaCatalogo = () => {
           />
         </>
       ) : (
-        <>
-          <Breadcrumbs sx={{ mb: 2 }}>
-            <Link
-              sx={{ cursor: "pointer" }}
-              underline="hover"
-              color="inherit"
-              onClick={() => navigate("/")}
-            >
-              Home
-            </Link>
-            <Typography color="text.primary">{nome}</Typography>
-          </Breadcrumbs>
-          <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
-            {nome}
-          </Typography>
-          <Typography sx={{ mb: 4, color: "#666" }}>
-            {descrizione || "Nessuna descrizione disponibile."}
-          </Typography>
-        </>
+        famiglia && (
+          <>
+            <Breadcrumbs sx={{ mb: 2 }}>
+              <Link
+                sx={{ cursor: "pointer" }}
+                underline="hover"
+                color="inherit"
+                onClick={() => navigate("/")}
+              >
+                Home
+              </Link>
+              <Typography color="text.primary">{famiglia.nome}</Typography>
+            </Breadcrumbs>
+            <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
+              {famiglia.nome}
+            </Typography>
+            <Typography sx={{ mb: 4, color: "#666" }}>
+              {famiglia.descrizione || "Nessuna descrizione disponibile."}
+            </Typography>
+          </>
+        )
       )}
 
       <Grid
@@ -104,26 +151,11 @@ const FamigliaCatalogo = () => {
         justifyContent="center"
       >
         {loading ? (
-          <>
-            <Grid size={{ xs: 4 }}>
-              <Skeleton variant="rounded" width={316} height={414} />
+          Array.from(new Array(6)).map((_, index) => (
+            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={index}>
+              <Skeleton variant="rounded" height={414} />
             </Grid>
-            <Grid size={{ xs: 4 }}>
-              <Skeleton variant="rounded" width={316} height={414} />
-            </Grid>
-            <Grid size={{ xs: 4 }}>
-              <Skeleton variant="rounded" width={316} height={414} />
-            </Grid>
-            <Grid size={{ xs: 4 }}>
-              <Skeleton variant="rounded" width={316} height={414} />
-            </Grid>
-            <Grid size={{ xs: 4 }}>
-              <Skeleton variant="rounded" width={316} height={414} />
-            </Grid>
-            <Grid size={{ xs: 4 }}>
-              <Skeleton variant="rounded" width={316} height={414} />
-            </Grid>
-          </>
+          ))
         ) : generi.length === 0 ? (
           <Grid size={{ xs: 12 }}>
             <Box sx={{ textAlign: "center", py: 6, color: "#888" }}>
@@ -133,15 +165,15 @@ const FamigliaCatalogo = () => {
         ) : (
           generi.map((g) => (
             <Grid
-              size={{ xs: 12 }}
-              key={g.nome}
+              size={{ xs: 12, sm: 6, md: 4 }}
+              key={g.id}
               sx={{ display: "flex", justifyContent: "center" }}
             >
               <CardPianta
-                id={g.nome}
+                id={g.id}
                 specie={g.nome}
                 fotoUrl={g.fotoUrl || FALLBACK_IMAGE_URL}
-                onClick={() => navigate(`/catalogo/genere/${g.nome}`)}
+                onClick={() => navigate(`/catalogo/genere/${g.id}`)}
               />
             </Grid>
           ))

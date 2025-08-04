@@ -29,29 +29,78 @@ import type { DataSingle } from "../types/general";
 // Fallback image
 import { FALLBACK_IMAGE_URL } from "../utils/constants";
 
+interface FamigliaInfo {
+  id: string;
+  nome: string;
+}
+interface GenereInfo {
+  id: string;
+  nome: string;
+}
+
 const Pianta = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [pianta, setPianta] = useState<DataSingle | null>(null);
+  const [famiglia, setFamiglia] = useState<FamigliaInfo | null>(null);
+  const [genere, setGenere] = useState<GenereInfo | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchPianta = async () => {
-      if (!id) return;
-      setLoading(true);
-      const docRef = doc(db, "piante", id);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setPianta({
-          id: docSnap.id,
-          ...(docSnap.data() as Omit<DataSingle, "id">),
-        });
-      }
+    if (!id) {
       setLoading(false);
+      return;
+    }
+
+    const fetchPiantaData = async () => {
+      setLoading(true);
+      try {
+        // 1. Recupera il documento principale della pianta
+        const docRef = doc(db, "piante", id);
+        const docSnap = await getDoc(docRef);
+
+        if (!docSnap.exists()) {
+          throw new Error("Pianta non trovata");
+        }
+
+        const piantaData = {
+          id: docSnap.id,
+          ...docSnap.data(),
+        } as DataSingle;
+        setPianta(piantaData);
+
+        // 2. Se la pianta esiste, recupera i dati di famiglia e genere in parallelo
+        if (piantaData.famigliaId && piantaData.genereId) {
+          const famigliaRef = doc(db, "famiglie", piantaData.famigliaId);
+          const genereRef = doc(db, "generi", piantaData.genereId);
+
+          const [famigliaSnap, genereSnap] = await Promise.all([
+            getDoc(famigliaRef),
+            getDoc(genereRef),
+          ]);
+
+          if (famigliaSnap.exists()) {
+            setFamiglia({
+              id: famigliaSnap.id,
+              nome: famigliaSnap.data().nome,
+            });
+          }
+          if (genereSnap.exists()) {
+            setGenere({ id: genereSnap.id, nome: genereSnap.data().nome });
+          }
+        }
+      } catch (error) {
+        console.error("Errore nel recupero dei dati della pianta:", error);
+        setPianta(null);
+      } finally {
+        setLoading(false);
+      }
     };
-    fetchPianta();
+
+    fetchPiantaData();
   }, [id]);
 
   const handleOpenModal = (imageUrl: string) => {
@@ -178,28 +227,29 @@ const Pianta = () => {
             underline="hover"
             color="inherit"
             onClick={() => navigate("/")}
-            aria-label="Vai alla Home"
           >
             Home
           </Link>
-          <Link
-            sx={{ cursor: "pointer" }}
-            underline="hover"
-            color="inherit"
-            onClick={() => navigate(`/catalogo/famiglia/${pianta.famiglia}`)}
-            aria-label={`Vai alla famiglia ${pianta.famiglia}`}
-          >
-            {pianta.famiglia}
-          </Link>
-          <Link
-            sx={{ cursor: "pointer" }}
-            underline="hover"
-            color="inherit"
-            onClick={() => navigate(`/catalogo/genere/${pianta.genere}`)}
-            aria-label={`Vai al genere ${pianta.genere}`}
-          >
-            {pianta.genere}
-          </Link>
+          {famiglia && (
+            <Link
+              sx={{ cursor: "pointer" }}
+              underline="hover"
+              color="inherit"
+              onClick={() => navigate(`/catalogo/famiglia/${famiglia.id}`)}
+            >
+              {famiglia.nome}
+            </Link>
+          )}
+          {genere && (
+            <Link
+              sx={{ cursor: "pointer" }}
+              underline="hover"
+              color="inherit"
+              onClick={() => navigate(`/catalogo/genere/${genere.id}`)}
+            >
+              {genere.nome}
+            </Link>
+          )}
           <Typography color="text.primary">{pianta.specie}</Typography>
         </Breadcrumbs>
 
@@ -214,7 +264,7 @@ const Pianta = () => {
             textShadow: "0 2px 8px rgba(0,0,0,0.06)",
           }}
         >
-          {pianta.genere + " " + pianta.specie}
+          {`${genere?.nome || ""} ${pianta.specie}`}
         </Typography>
         <Typography
           variant="h5"
@@ -226,13 +276,9 @@ const Pianta = () => {
             letterSpacing: "0.5px",
           }}
         >
-          {pianta.famiglia +
-            " " +
-            pianta.genere +
-            " " +
-            pianta.specie +
-            " " +
-            pianta.descrittorePianta}
+          {`${famiglia?.nome || ""} ${genere?.nome || ""} ${pianta.specie} ${
+            pianta.descrittorePianta || ""
+          }`}
         </Typography>
         {pianta.sinonimi && (
           <Typography sx={{ mb: 2, fontSize: 16, color: "#888" }}>
@@ -258,10 +304,10 @@ const Pianta = () => {
           }}
         >
           <Typography>
-            <b>Famiglia:</b> {pianta.famiglia || "-"}
+            <b>Famiglia:</b> {famiglia?.nome || "-"}
           </Typography>
           <Typography>
-            <b>Genere:</b> {pianta.genere || "-"}
+            <b>Genere:</b> {genere?.nome || "-"}
           </Typography>
           <Typography>
             <b>Specie:</b> {pianta.specie || "-"}

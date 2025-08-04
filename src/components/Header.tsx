@@ -112,24 +112,48 @@ const Header = (): JSX.Element => {
       ]);
 
       const allDocs = [...snap1.docs, ...snap2.docs, ...snap3.docs];
+
       const unique = Array.from(
         new Map(allDocs.map((doc) => [doc.id, doc])).values()
       );
 
+      // 1. Se abbiamo trovato delle piante, recuperiamo le tabelle di conversione (generi e famiglie)
+      let generiMap = new Map();
+      let famiglieMap = new Map();
+
+      if (unique.length > 0) {
+        const [allGeneriSnap, allFamiglieSnap] = await Promise.all([
+          getDocs(collection(db, "generi")),
+          getDocs(collection(db, "famiglie")),
+        ]);
+        // 2. Creiamo delle "mappe" per una ricerca super-veloce (ID -> Nome)
+        generiMap = new Map(
+          allGeneriSnap.docs.map((doc) => [doc.id, doc.data().nome])
+        );
+        famiglieMap = new Map(
+          allFamiglieSnap.docs.map((doc) => [doc.id, doc.data().nome])
+        );
+      }
+
+      // 3. Mappiamo i risultati finali, usando le mappe per tradurre gli ID in nomi
       const arr = unique
-        .map((doc) => ({
-          id: doc.id,
-          specie: doc.data().specie,
-          genere: doc.data().genere,
-          famiglia: doc.data().famiglia,
-          label: doc.data().specie || "",
-        }))
+        .map((doc) => {
+          const piantaData = doc.data();
+          return {
+            id: doc.id,
+            specie: piantaData.specie,
+            genere: generiMap.get(piantaData.genereId) || "", // Traduzione
+            famiglia: famiglieMap.get(piantaData.famigliaId) || "", // Traduzione
+            label: piantaData.specie || "",
+          };
+        })
         .filter(
           (p) =>
             (p.specie && p.specie.toLowerCase().includes(searchLower)) ||
             (p.genere && p.genere.toLowerCase().includes(searchLower)) ||
             (p.famiglia && p.famiglia.toLowerCase().includes(searchLower))
         );
+      console.log(arr[0]);
 
       setResults(arr.slice(0, 8));
       setSearching(false);

@@ -29,8 +29,11 @@ function App() {
         <Route path="/contatti" element={<Contatti />} />
         <Route path="/login" element={<Login />} />
         <Route path="/pianta/:id" element={<Pianta />} />
-        <Route path="/catalogo/famiglia/:nome" element={<FamigliaCatalogo />} />
-        <Route path="/catalogo/genere/:nome" element={<GenereCatalogo />} />
+        <Route
+          path="/catalogo/famiglia/:famigliaId"
+          element={<FamigliaCatalogo />}
+        />
+        <Route path="/catalogo/genere/:genereId" element={<GenereCatalogo />} />
         <Route
           path="/dashboard"
           element={

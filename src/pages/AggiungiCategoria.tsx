@@ -7,12 +7,11 @@ import {
   collection,
   addDoc,
   getDocs,
+  getDoc,
   deleteDoc,
   doc,
   serverTimestamp,
   updateDoc,
-  query,
-  where,
 } from "firebase/firestore";
 import {
   getStorage,
@@ -45,19 +44,34 @@ import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
+import Collapse from "@mui/material/Collapse";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import Checkbox from "@mui/material/Checkbox";
+import Tooltip from "@mui/material/Tooltip";
 
 import imageCompression from "browser-image-compression";
 
 const AggiungiCategoria = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [deleteType, setDeleteType] = useState<"famiglia" | "genere" | null>(
-    null
-  );
+  const [deleteType, setDeleteType] = useState<
+    "famiglia" | "genere" | "bulk" | null
+  >(null);
   const [deleteName, setDeleteName] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [openFamigliaId, setOpenFamigliaId] = useState<string | null>(null);
+  const [selectedFamiglie, setSelectedFamiglie] = useState<string[]>([]);
+  const [selectedGeneri, setSelectedGeneri] = useState<string[]>([]);
 
   // Famiglie
   const [famiglie, setFamiglie] = useState<
-    { nome: string; descrizione: string; fotoUrl?: string }[]
+    {
+      id: string;
+      nome: string;
+      descrizione: string;
+      fotoUrl?: string;
+      fotoThumbnailUrl?: string;
+    }[]
   >([]);
   const [famigliaFotoUrl, setFamigliaFotoUrl] = useState<string | null>(null);
   const [famigliaFotoThumbnailUrl, setFamigliaFotoThumbnailUrl] = useState<
@@ -67,6 +81,7 @@ const AggiungiCategoria = () => {
   const [famigliaNome, setFamigliaNome] = useState("");
   const [famigliaDescrizione, setFamigliaDescrizione] = useState("");
   const [famigliaEdit, setFamigliaEdit] = useState<{
+    id: string;
     nome: string;
     descrizione: string;
     fotoUrl?: string;
@@ -75,7 +90,14 @@ const AggiungiCategoria = () => {
 
   // Generi
   const [generi, setGeneri] = useState<
-    { nome: string; descrizione: string; famiglia: string; fotoUrl?: string }[]
+    {
+      id: string;
+      nome: string;
+      descrizione: string;
+      famigliaId: string;
+      fotoUrl?: string;
+      fotoThumbnailUrl?: string;
+    }[]
   >([]);
   const [genereFotoUrl, setGenereFotoUrl] = useState<string | null>(null);
   const [genereFotoThumbnailUrl, setGenereFotoThumbnailUrl] = useState<
@@ -86,11 +108,12 @@ const AggiungiCategoria = () => {
   const [genereDescrizione, setGenereDescrizione] = useState("");
   const [genereFamiglia, setGenereFamiglia] = useState("");
   const [genereEdit, setGenereEdit] = useState<{
+    id: string;
     nome: string;
     descrizione: string;
     fotoUrl?: string;
     fotoThumbnailUrl?: string;
-    famiglia: string;
+    famigliaId: string;
   } | null>(null);
 
   // Modali
@@ -103,25 +126,33 @@ const AggiungiCategoria = () => {
     severity: "success" | "error";
   } | null>(null);
 
+  const numSelected = selectedFamiglie.length + selectedGeneri.length;
+
   // Carica famiglie e generi da Firestore
   const fetchData = async () => {
     const famSnap = await getDocs(collection(db, "famiglie"));
     setFamiglie(
       famSnap.docs.map((doc) => ({
-        nome: doc.data().nome,
-        descrizione: doc.data().descrizione || "",
-        fotoUrl: doc.data().fotoUrl,
-        fotoThumbnailUrl: doc.data().fotoThumbnailUrl,
+        id: doc.id,
+        ...(doc.data() as {
+          nome: string;
+          descrizione: string;
+          fotoUrl?: string;
+          fotoThumbnailUrl?: string;
+        }),
       }))
     );
     const genSnap = await getDocs(collection(db, "generi"));
     setGeneri(
       genSnap.docs.map((doc) => ({
-        nome: doc.data().nome,
-        descrizione: doc.data().descrizione || "",
-        famiglia: doc.data().famiglia || "",
-        fotoUrl: doc.data().fotoUrl,
-        fotoThumbnailUrl: doc.data().fotoThumbnailUrl,
+        id: doc.id,
+        ...(doc.data() as {
+          nome: string;
+          descrizione: string;
+          famigliaId: string;
+          fotoUrl?: string;
+          fotoThumbnailUrl?: string;
+        }),
       }))
     );
   };
@@ -132,15 +163,16 @@ const AggiungiCategoria = () => {
 
   // Reset modali
   const resetFamigliaForm = () => {
+    setShowFamigliaModal(false);
     setFamigliaEdit(null);
     setFamigliaNome("");
     setFamigliaDescrizione("");
     setFamigliaFotoUrl(null);
     setFamigliaFotoThumbnailUrl(null);
     setFamigliaFotoFile(null);
-    setShowFamigliaModal(false);
   };
   const resetGenereForm = () => {
+    setShowGenereModal(false);
     setGenereEdit(null);
     setGenereNome("");
     setGenereDescrizione("");
@@ -148,7 +180,6 @@ const AggiungiCategoria = () => {
     setGenereFotoUrl(null);
     setGenereFotoThumbnailUrl(null);
     setGenereFotoFile(null);
-    setShowGenereModal(false);
   };
 
   // Aggiungi/modifica famiglia
@@ -226,15 +257,7 @@ const AggiungiCategoria = () => {
 
       if (famigliaEdit) {
         // Modifica
-        const snap = await getDocs(
-          query(
-            collection(db, "famiglie"),
-            where("nome", "==", famigliaEdit.nome)
-          )
-        );
-        if (!snap.empty) {
-          await updateDoc(doc(db, "famiglie", snap.docs[0].id), data);
-        }
+        await updateDoc(doc(db, "famiglie", famigliaEdit.id), data);
       } else {
         // Nuova
         await addDoc(collection(db, "famiglie"), {
@@ -255,6 +278,7 @@ const AggiungiCategoria = () => {
 
   // Modifica famiglia
   const handleModificaFamiglia = (famiglia: {
+    id: string;
     nome: string;
     descrizione: string;
     fotoUrl?: string;
@@ -341,19 +365,14 @@ const AggiungiCategoria = () => {
       const data = {
         nome: genereNome.trim(),
         descrizione: genereDescrizione.trim(),
-        famiglia: genereFamiglia,
+        famigliaId: genereFamiglia,
         fotoUrl: fotoUrl,
         fotoThumbnailUrl: fotoThumbnailUrl,
       };
 
       if (genereEdit) {
         // Modifica
-        const snap = await getDocs(
-          query(collection(db, "generi"), where("nome", "==", genereEdit.nome))
-        );
-        if (!snap.empty) {
-          await updateDoc(doc(db, "generi", snap.docs[0].id), data);
-        }
+        await updateDoc(doc(db, "generi", genereEdit.id), data);
       } else {
         // Nuovo
         await addDoc(collection(db, "generi"), {
@@ -370,16 +389,17 @@ const AggiungiCategoria = () => {
 
   // Modifica genere
   const handleModificaGenere = (genere: {
+    id: string;
     nome: string;
     descrizione: string;
-    famiglia: string;
+    famigliaId: string;
     fotoUrl?: string;
     fotoThumbnailUrl?: string;
   }) => {
     setGenereEdit(genere);
     setGenereNome(genere.nome);
     setGenereDescrizione(genere.descrizione);
-    setGenereFamiglia(genere.famiglia || "");
+    setGenereFamiglia(genere.famigliaId || "");
     setGenereFotoUrl(genere.fotoUrl || null);
     setGenereFotoThumbnailUrl(genere.fotoThumbnailUrl || null);
     setShowGenereModal(true);
@@ -393,15 +413,14 @@ const AggiungiCategoria = () => {
   };
 
   // Elimina famiglia
-  const handleRimuoviFamiglia = async (nome: string) => {
+  const handleRimuoviFamiglia = async (id: string) => {
     try {
-      const snap = await getDocs(
-        query(collection(db, "famiglie"), where("nome", "==", nome))
-      );
-      if (snap.empty) return;
+      const docRef = doc(db, "famiglie", id);
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists()) return;
 
-      const docToDelete = snap.docs[0];
-      const fotoUrl = docToDelete.data().fotoUrl;
+      const docToDelete = docSnap.data();
+      const fotoUrl = docToDelete.fotoUrl;
       const fotoThumbnailUrl = docToDelete.data().fotoThumbnailUrl;
 
       // Se esiste una foto, eliminala prima da Storage
@@ -429,14 +448,13 @@ const AggiungiCategoria = () => {
   };
 
   // Elimina genere
-  const handleRimuoviGenere = async (nome: string) => {
+  const handleRimuoviGenere = async (id: string) => {
     try {
-      const snap = await getDocs(
-        query(collection(db, "generi"), where("nome", "==", nome))
-      );
-      if (snap.empty) return;
+      const docRef = doc(db, "generi", id);
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists()) return;
 
-      const docToDelete = snap.docs[0];
+      const docToDelete = docSnap.data();
       const fotoUrl = docToDelete.data().fotoUrl;
       const fotoThumbnailUrl = docToDelete.data().fotoThumbnailUrl;
 
@@ -457,251 +475,234 @@ const AggiungiCategoria = () => {
       }
 
       // Ora elimina il documento da Firestore
-      await deleteDoc(doc(db, "generi", docToDelete.id));
+      await deleteDoc(docRef);
       await fetchData();
     } catch (err) {
       alert("Errore durante l'eliminazione del genere: " + err);
     }
   };
 
+  // Eliminazione multipla
+  const handleBulkDelete = async () => {
+    const promises: Promise<void>[] = [];
+    selectedFamiglie.forEach((id) => promises.push(handleRimuoviFamiglia(id)));
+    selectedGeneri.forEach((id) => promises.push(handleRimuoviGenere(id)));
+
+    try {
+      await Promise.all(promises);
+      setNotification({
+        message: "Elementi selezionati eliminati con successo.",
+        severity: "success",
+      });
+    } catch (error) {
+      setNotification({
+        message: "Errore durante l'eliminazione multipla.",
+        severity: "error",
+      });
+      console.error("Errore bulk delete:", error);
+    } finally {
+      setSelectedFamiglie([]);
+      setSelectedGeneri([]);
+      fetchData();
+    }
+  };
+
   // Modal di conferma eliminazione genere/famiglia
-  const askDelete = (type: "famiglia" | "genere", name: string) => {
+  const askDelete = (type: "famiglia" | "genere", id: string, name: string) => {
     setDeleteType(type);
+    setDeleteId(id);
     setDeleteName(name);
+    setConfirmOpen(true);
+  };
+
+  const askBulkDelete = () => {
+    setDeleteType("bulk");
+    if (numSelected === 1) {
+      setDeleteName("l'elemento");
+    } else {
+      setDeleteName(`${numSelected} elementi`);
+    }
+
     setConfirmOpen(true);
   };
 
   // Gestisce l'eliminazione di generi/famiglie
   const handleConfirmDelete = async () => {
-    if (deleteType === "famiglia" && deleteName) {
-      await handleRimuoviFamiglia(deleteName);
+    if (deleteType === "famiglia" && deleteId) {
+      await handleRimuoviFamiglia(deleteId);
     }
-    if (deleteType === "genere" && deleteName) {
-      await handleRimuoviGenere(deleteName);
+    if (deleteType === "genere" && deleteId) {
+      await handleRimuoviGenere(deleteId);
+    }
+    if (deleteType === "bulk") {
+      await handleBulkDelete();
     }
     setConfirmOpen(false);
     setDeleteType(null);
+    setDeleteId(null);
     setDeleteName(null);
   };
+
+  // Gestione selezioni per eliminazione multipla
+  const handleSelectAllFamiglie = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    if (event.target.checked) {
+      const allFamigliaIds = famiglie.map((f) => f.id);
+      setSelectedFamiglie(allFamigliaIds);
+    } else {
+      setSelectedFamiglie([]);
+    }
+  };
+
+  const handleSelectFamiglia = (id: string) => {
+    setSelectedFamiglie((prev) =>
+      prev.includes(id) ? prev.filter((famId) => famId !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectGenere = (id: string) => {
+    setSelectedGeneri((prev) =>
+      prev.includes(id) ? prev.filter((genId) => genId !== id) : [...prev, id]
+    );
+  };
+
+  const famigliaIdToNameMap = new Map(famiglie.map((f) => [f.id, f.nome]));
+  console.log(famigliaIdToNameMap);
 
   return (
     <Box
       sx={{
         mt: "130px",
         mb: "50px",
-        maxWidth: 1600,
+        width: "100%",
+        maxWidth: "1200px",
         mx: "auto",
         p: { xs: 2, md: 4 },
         flexGrow: 1,
       }}
     >
-      <Typography variant="h4" sx={{ mb: 5, textAlign: "center" }}>
+      <Typography variant="h4" sx={{ mb: 3, textAlign: "center" }}>
         Gestione categorie
       </Typography>
 
-      <Box sx={{ display: "flex", alignItems: "flex-start" }}>
-        <TableContainer component={Paper} sx={{ mt: 4 }}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell
-                  align="center"
-                  colSpan={3}
-                  sx={{ background: "#f5f5f5", minWidth: 400 }}
-                >
-                  <b>Famiglie</b>
-                </TableCell>
-                <TableCell
-                  align="center"
-                  colSpan={3}
-                  sx={{
-                    background: "#f5f5f5",
-                    minWidth: 400,
-                    borderLeft: "2px solid #e0e0e0",
-                  }}
-                >
-                  <b>Generi</b>
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell sx={{ minWidth: 180, py: 2 }}>
-                  <b>Nome</b>
-                </TableCell>
-                <TableCell sx={{ minWidth: 220, py: 2 }}>
-                  <b>Descrizione</b>
-                </TableCell>
-                <TableCell sx={{ width: 60, py: 2 }}>
-                  <Button
-                    variant="contained"
-                    sx={{
-                      background: "#FFC107",
-                      color: "#222",
-                      "&:hover": { background: "#ffb300" },
-                    }}
-                    size="small"
-                    onClick={() => setShowFamigliaModal(true)}
-                    aria-label="Aggiungi famiglia"
-                  >
-                    +
-                  </Button>
-                </TableCell>
-                <TableCell
-                  sx={{ minWidth: 180, py: 2, borderLeft: "2px solid #e0e0e0" }}
-                >
-                  <b>Nome</b>
-                </TableCell>
-                <TableCell sx={{ minWidth: 220, py: 2 }}>
-                  <b>Descrizione</b>
-                </TableCell>
-                <TableCell sx={{ width: 60, py: 2 }}>
-                  <Button
-                    variant="contained"
-                    sx={{
-                      background: "#FFC107",
-                      color: "#222",
-                      "&:hover": { background: "#ffb300" },
-                    }}
-                    size="small"
-                    onClick={() => setShowGenereModal(true)}
-                    aria-label="Aggiungi genere"
-                  >
-                    +
-                  </Button>
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {Array.from({
-                length: Math.max(famiglie.length, generi.length, 1),
-              }).map((_, idx) => (
-                <TableRow key={idx}>
-                  {/* Famiglia */}
-                  {famiglie[idx] ? (
-                    <>
-                      <TableCell sx={{ py: 2 }}>{famiglie[idx].nome}</TableCell>
-                      <TableCell
-                        sx={{
-                          py: 2,
-                          maxWidth: 250,
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {famiglie[idx].descrizione}
-                      </TableCell>
-                      <TableCell sx={{ py: 2 }}>
-                        <Box sx={{ display: "flex", gap: 1 }}>
-                          <IconButton
-                            size="small"
-                            color="primary"
-                            aria-label="Modifica famiglia"
-                            onClick={() =>
-                              handleModificaFamiglia(famiglie[idx])
-                            }
-                          >
-                            <EditIcon />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            color="error"
-                            aria-label="Elimina famiglia"
-                            onClick={() =>
-                              askDelete("famiglia", famiglie[idx].nome)
-                            }
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </Box>
-                      </TableCell>
-                    </>
-                  ) : idx === 0 ? (
-                    <>
-                      <TableCell
-                        colSpan={3}
-                        align="center"
-                        sx={{ color: "#888", py: 3 }}
-                      >
-                        Nessuna famiglia
-                      </TableCell>
-                    </>
-                  ) : (
-                    <>
-                      <TableCell />
-                      <TableCell />
-                      <TableCell />
-                    </>
-                  )}
-
-                  {/* Genere */}
-                  {generi[idx] ? (
-                    <>
-                      <TableCell
-                        sx={{ py: 2, borderLeft: "2px solid #e0e0e0" }}
-                      >
-                        {generi[idx].nome}
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          py: 2,
-                          maxWidth: 250,
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {generi[idx].descrizione}
-                      </TableCell>
-                      <TableCell sx={{ py: 2 }}>
-                        <Box sx={{ display: "flex", gap: 1 }}>
-                          <IconButton
-                            size="small"
-                            color="primary"
-                            aria-label="Modifica genere"
-                            onClick={() => handleModificaGenere(generi[idx])}
-                          >
-                            <EditIcon />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            color="error"
-                            aria-label="Elimina genere"
-                            onClick={() =>
-                              askDelete("genere", generi[idx].nome)
-                            }
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </Box>
-                      </TableCell>
-                    </>
-                  ) : idx === 0 ? (
-                    <>
-                      <TableCell
-                        colSpan={3}
-                        align="center"
-                        sx={{
-                          color: "#888",
-                          py: 3,
-                          borderLeft: "2px solid #e0e0e0",
-                        }}
-                      >
-                        Nessun genere
-                      </TableCell>
-                    </>
-                  ) : (
-                    <>
-                      <TableCell sx={{ borderLeft: "2px solid #e0e0e0" }} />
-                      <TableCell sx={{ borderLeft: "2px solid #e0e0e0" }} />
-                      <TableCell sx={{ borderLeft: "2px solid #e0e0e0" }} />
-                    </>
-                  )}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+      <Box sx={{ display: "flex", gap: 2, mb: 4, justifyContent: "center" }}>
+        <Button
+          variant="contained"
+          onClick={() => setShowFamigliaModal(true)}
+          aria-label="Aggiungi famiglia"
+        >
+          Aggiungi Famiglia
+        </Button>
+        <Button
+          variant="contained"
+          onClick={() => setShowGenereModal(true)}
+          aria-label="Aggiungi genere"
+        >
+          Aggiungi Genere
+        </Button>
       </Box>
+
+      <TableContainer component={Paper}>
+        <Table aria-label="collapsible table">
+          <TableHead>
+            <TableRow sx={{ background: "#f5f5f5" }}>
+              {numSelected > 0 ? (
+                // === VISTA QUANDO CI SONO ELEMENTI SELEZIONATI ===
+                <>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      color="primary"
+                      indeterminate={
+                        selectedFamiglie.length > 0 &&
+                        selectedFamiglie.length < famiglie.length
+                      }
+                      checked={
+                        famiglie.length > 0 &&
+                        selectedFamiglie.length === famiglie.length
+                      }
+                      onChange={handleSelectAllFamiglie}
+                    />
+                  </TableCell>
+                  <TableCell sx={{ width: "5%" }} />
+                  <TableCell>
+                    <b>
+                      {numSelected}{" "}
+                      {numSelected === 1
+                        ? "elemento selezionato"
+                        : "elementi selezionati"}
+                    </b>
+                  </TableCell>
+                  <TableCell />
+                  <TableCell align="right">
+                    <Tooltip title="Elimina selezionati">
+                      <IconButton
+                        onClick={askBulkDelete}
+                        sx={{ padding: "0 5px" }}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </>
+              ) : (
+                // === VISTA PREDEFINITA QUANDO NON C'È SELEZIONE ===
+                <>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      color="primary"
+                      indeterminate={
+                        selectedFamiglie.length > 0 &&
+                        selectedFamiglie.length < famiglie.length
+                      }
+                      checked={
+                        famiglie.length > 0 &&
+                        selectedFamiglie.length === famiglie.length
+                      }
+                      onChange={handleSelectAllFamiglie}
+                      inputProps={{
+                        "aria-label": "seleziona tutte le famiglie",
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell sx={{ width: "5%" }} />
+                  <TableCell>
+                    <b>Nome</b>
+                  </TableCell>
+                  <TableCell>
+                    <b>Descrizione</b>
+                  </TableCell>
+                  <TableCell align="right">
+                    <b>Azioni</b>
+                  </TableCell>
+                </>
+              )}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {famiglie.map((famiglia) => (
+              <Row
+                key={famiglia.id}
+                famiglia={famiglia}
+                generi={generi.filter((g) => g.famigliaId === famiglia.id)}
+                open={openFamigliaId === famiglia.id}
+                setOpen={() =>
+                  setOpenFamigliaId(
+                    openFamigliaId === famiglia.id ? null : famiglia.id
+                  )
+                }
+                handleModificaFamiglia={handleModificaFamiglia}
+                handleModificaGenere={handleModificaGenere}
+                askDelete={askDelete}
+                onSelectFamiglia={handleSelectFamiglia}
+                isFamigliaSelected={selectedFamiglie.includes(famiglia.id)}
+                onSelectGenere={handleSelectGenere}
+                selectedGeneri={selectedGeneri}
+              />
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
       {/* MODAL FAMIGLIA */}
       <Dialog
@@ -815,6 +816,22 @@ const AggiungiCategoria = () => {
               multiline
               minRows={6}
             />
+            <Select
+              value={genereFamiglia}
+              onChange={(e) => setGenereFamiglia(e.target.value)}
+              size="small"
+              fullWidth
+              displayEmpty
+            >
+              <MenuItem value="">
+                <em>Seleziona famiglia</em>
+              </MenuItem>
+              {famiglie.map((f) => (
+                <MenuItem key={f.id} value={f.id}>
+                  {f.nome}
+                </MenuItem>
+              ))}
+            </Select>
             <Button variant="outlined" component="label">
               Carica Foto Genere
               <input
@@ -858,22 +875,6 @@ const AggiungiCategoria = () => {
                 </Button>
               </Box>
             )}
-            <Select
-              value={genereFamiglia}
-              onChange={(e) => setGenereFamiglia(e.target.value)}
-              size="small"
-              sx={{ mt: 2 }}
-              displayEmpty
-            >
-              <MenuItem value="">
-                <em>Seleziona famiglia</em>
-              </MenuItem>
-              {famiglie.map((f) => (
-                <MenuItem key={f.nome} value={f.nome}>
-                  {f.nome}
-                </MenuItem>
-              ))}
-            </Select>
           </Box>
         </DialogContent>
         <DialogActions>
@@ -895,7 +896,11 @@ const AggiungiCategoria = () => {
         <DialogContent>
           <Typography>
             Sei sicuro di voler eliminare{" "}
-            {deleteType === "famiglia" ? "la famiglia" : "il genere"}{" "}
+            {deleteType === "famiglia"
+              ? "la famiglia"
+              : deleteType === "genere"
+              ? "il genere"
+              : ""}{" "}
             <b>{deleteName}</b>?
           </Typography>
         </DialogContent>
@@ -927,5 +932,180 @@ const AggiungiCategoria = () => {
     </Box>
   );
 };
+
+// Componente per la singola riga della tabella (Row)
+function Row(props: {
+  famiglia: {
+    id: string;
+    nome: string;
+    descrizione: string;
+    fotoUrl?: string;
+    fotoThumbnailUrl?: string;
+  };
+  generi: {
+    id: string;
+    nome: string;
+    descrizione: string;
+    famigliaId: string;
+    fotoUrl?: string;
+    fotoThumbnailUrl?: string;
+  }[];
+  open: boolean;
+  setOpen: () => void;
+  handleModificaFamiglia: (famiglia: {
+    id: string;
+    nome: string;
+    descrizione: string;
+    fotoUrl?: string;
+    fotoThumbnailUrl?: string;
+  }) => void;
+  handleModificaGenere: (genere: {
+    id: string;
+    nome: string;
+    descrizione: string;
+    famigliaId: string;
+    fotoUrl?: string;
+    fotoThumbnailUrl?: string;
+  }) => void;
+  askDelete: (type: "famiglia" | "genere", id: string, name: string) => void;
+  onSelectFamiglia: (id: string) => void;
+  isFamigliaSelected: boolean;
+  onSelectGenere: (id: string) => void;
+  selectedGeneri: string[];
+}) {
+  const {
+    famiglia,
+    generi,
+    open,
+    setOpen,
+    handleModificaFamiglia,
+    handleModificaGenere,
+    askDelete,
+    onSelectFamiglia,
+    isFamigliaSelected,
+    onSelectGenere,
+    selectedGeneri,
+  } = props;
+
+  return (
+    <>
+      {/* Riga principale della famiglia */}
+      <TableRow sx={{ "& > *": { borderBottom: "unset" } }}>
+        <TableCell padding="checkbox">
+          <Checkbox
+            color="primary"
+            checked={isFamigliaSelected}
+            onChange={() => onSelectFamiglia(famiglia.id)}
+          />
+        </TableCell>
+        <TableCell sx={{ width: 60 }}>
+          <IconButton aria-label="expand row" onClick={setOpen} sx={{ p: 0 }}>
+            {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+          </IconButton>
+        </TableCell>
+        <TableCell component="th" scope="row" sx={{ width: "20%" }}>
+          {famiglia.nome}
+        </TableCell>
+
+        <TableCell
+          sx={{
+            maxWidth: 300,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {famiglia.descrizione}
+        </TableCell>
+        <TableCell align="right">
+          <IconButton
+            size="small"
+            onClick={() => handleModificaFamiglia(famiglia)}
+          >
+            <EditIcon />
+          </IconButton>
+          <IconButton
+            size="small"
+            color="error"
+            onClick={() => askDelete("famiglia", famiglia.id, famiglia.nome)}
+          >
+            <DeleteIcon />
+          </IconButton>
+        </TableCell>
+      </TableRow>
+
+      {/* Riga collassabile con la sotto-tabella dei generi */}
+      <TableRow>
+        <TableCell style={{ padding: 0, borderBottom: "unset" }} colSpan={6}>
+          <Collapse in={open} timeout="auto" unmountOnExit>
+            <Box sx={{ padding: 0, borderBottom: "unset" }}>
+              <Table aria-label="purchases">
+                <TableBody>
+                  {generi.length > 0 ? (
+                    generi.map((genere) => (
+                      <TableRow
+                        key={genere.id}
+                        sx={{ backgroundColor: "#f5f5f5" }}
+                      >
+                        <TableCell padding="checkbox">
+                          <Checkbox
+                            color="primary"
+                            checked={selectedGeneri.includes(genere.id)}
+                            onChange={() => onSelectGenere(genere.id)}
+                          />
+                        </TableCell>
+                        <TableCell sx={{ width: "5%" }} />
+                        <TableCell
+                          component="th"
+                          scope="row"
+                          sx={{ width: "20%" }}
+                        >
+                          - {genere.nome}
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            maxWidth: 300,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {genere.descrizione}
+                        </TableCell>
+                        <TableCell align="right">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleModificaGenere(genere)}
+                          >
+                            <EditIcon />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() =>
+                              askDelete("genere", genere.id, genere.nome)
+                            }
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center">
+                        Nessun genere in questa famiglia.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </Box>
+          </Collapse>
+        </TableCell>
+      </TableRow>
+    </>
+  );
+}
 
 export default AggiungiCategoria;

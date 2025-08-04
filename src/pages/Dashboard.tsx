@@ -34,7 +34,9 @@ interface Pianta {
   specie?: string;
   fotoUrls?: string[];
   famiglia?: string;
+  famigliaId?: string;
   genere?: string;
+  genereId?: string;
   sinonimi?: string;
   sottospecie?: string;
   varieta?: string;
@@ -65,11 +67,58 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchPiante = async () => {
       setLoading(true);
-      const querySnapshot = await getDocs(collection(db, "piante"));
-      setPiante(
-        querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-      );
-      setLoading(false);
+      try {
+        // 1. Carica famiglie e generi e crea le mappe di lookup
+        const [famiglieSnap, generiSnap, pianteSnap] = await Promise.all([
+          getDocs(collection(db, "famiglie")),
+          getDocs(collection(db, "generi")),
+          getDocs(collection(db, "piante")),
+        ]);
+
+        const famiglieMap = new Map(
+          famiglieSnap.docs.map((doc) => [doc.id, doc.data().nome])
+        );
+        const generiMap = new Map(
+          generiSnap.docs.map((doc) => [doc.id, doc.data().nome])
+        );
+
+        // 2. Mappa le piante e arricchiscile con i nomi
+        const pianteConNomi = pianteSnap.docs.map((doc) => {
+          const data = doc.data();
+
+          // Costruiamo un nuovo oggetto pulito
+          const piantaMappata: Pianta = {
+            id: doc.id, // L'ID corretto dal documento
+            specie: data.specie,
+            famigliaId: data.famigliaId,
+            genereId: data.genereId,
+            fotoUrls: data.fotoUrls,
+            sinonimi: data.sinonimi,
+            sottospecie: data.sottospecie,
+            varieta: data.varieta,
+            forma: data.forma,
+            cultivar: data.cultivar,
+            descrittorePianta: data.descrittorePianta,
+            descrizione: data.descrizione,
+            origine: data.origine,
+            habitat: data.habitat,
+            esposizione: data.esposizione,
+            bagnature: data.bagnature,
+            temperaturaMinima: data.temperaturaMinima,
+            updatedAt: data.updatedAt,
+            famiglia: famiglieMap.get(data.famigliaId || "") || "N/A",
+            genere: generiMap.get(data.genereId || "") || "N/A",
+          };
+          return piantaMappata;
+        });
+
+        setPiante(pianteConNomi);
+      } catch (err) {
+        console.error("Errore nel caricamento dei dati della dashboard:", err);
+        setError("Impossibile caricare i dati.");
+      } finally {
+        setLoading(false);
+      }
     };
     fetchPiante();
   }, []);

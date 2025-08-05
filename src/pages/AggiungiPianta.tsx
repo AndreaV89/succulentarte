@@ -29,6 +29,12 @@ import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
 import FormControl from "@mui/material/FormControl";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogTitle from "@mui/material/DialogTitle";
+import Skeleton from "@mui/material/Skeleton";
 
 import imageCompression from "browser-image-compression";
 
@@ -58,6 +64,11 @@ const AggiungiPianta = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [photoIndexToDelete, setPhotoIndexToDelete] = useState<number | null>(
+    null
+  );
+  const [uploadingPhotosCount, setUploadingPhotosCount] = useState(0);
   const [allFamiglie, setAllFamiglie] = useState<
     { id: string; nome: string }[]
   >([]);
@@ -134,88 +145,105 @@ const AggiungiPianta = () => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
 
+      setUploadingPhotosCount(files.length);
+
       const piantaDocId = id;
       if (!piantaDocId) {
         setError("Devi prima salvare la pianta per poter aggiungere foto.");
         setTimeout(() => setError(null), 2000);
+        setUploadingPhotosCount(0);
         return;
       }
 
-      const uploadPromises = files.map(async (file) => {
-        const timestamp = Date.now();
-        const randomSuffix = Math.random().toString(36).substring(2, 8);
-        const baseFileName = `${timestamp}_${randomSuffix}_${file.name}`;
+      try {
+        const uploadPromises = files.map(async (file) => {
+          const timestamp = Date.now();
+          const randomSuffix = Math.random().toString(36).substring(2, 8);
+          const baseFileName = `${timestamp}_${randomSuffix}_${file.name}`;
 
-        // 1. Upload immagine originale
-        const storageRef = ref(
-          storage,
-          `piante/${piantaDocId}/${baseFileName}`
+          // 1. Upload immagine originale
+          const storageRef = ref(
+            storage,
+            `piante/${piantaDocId}/${baseFileName}`
+          );
+          await uploadBytes(storageRef, file);
+          const originalUrl = await getDownloadURL(storageRef);
+
+          // 2. Crea e upload miniatura per catalogo (piccola)
+          const thumbOptions = {
+            maxSizeMB: 0.1, // 100KB
+            maxWidthOrHeight: 400,
+            useWebWorker: true,
+          };
+          const compressedFile = await imageCompression(file, thumbOptions);
+          const thumbRef = ref(
+            storage,
+            `piante/${piantaDocId}/thumb_${baseFileName}`
+          );
+          await uploadBytes(thumbRef, compressedFile);
+          const thumbnailUrl = await getDownloadURL(thumbRef);
+
+          // 3. Crea e upload miniatura per galleria (media)
+          const galleryOptions = {
+            maxSizeMB: 0.5,
+            maxWidthOrHeight: 1200,
+            useWebWorker: true,
+          };
+          const compressedGalleryFile = await imageCompression(
+            file,
+            galleryOptions
+          );
+          const galleryRef = ref(
+            storage,
+            `piante/${piantaDocId}/gallery_${baseFileName}`
+          );
+          await uploadBytes(galleryRef, compressedGalleryFile);
+          const galleryUrl = await getDownloadURL(galleryRef);
+
+          return { originalUrl, thumbnailUrl, galleryUrl };
+        });
+
+        const uploadedSets = await Promise.all(uploadPromises);
+
+        const updatedOriginalUrls = [
+          ...fotoUrls,
+          ...uploadedSets.map((p) => p.originalUrl),
+        ];
+        const updatedThumbnailUrls = [
+          ...fotoThumbnailUrls,
+          ...uploadedSets.map((p) => p.thumbnailUrl),
+        ];
+        const updatedGalleryUrls = [
+          ...fotoGalleryUrls,
+          ...uploadedSets.map((p) => p.galleryUrl),
+        ];
+
+        // Aggiorna lo stato locale
+        setFotoUrls(updatedOriginalUrls);
+        setFotoThumbnailUrls(updatedThumbnailUrls);
+        setFotoGalleryUrls(updatedGalleryUrls);
+
+        // Aggiorna subito Firestore aggiungendo le nuove foto all'array
+        const docRef = doc(db, "piante", piantaDocId);
+        await updateDoc(docRef, {
+          fotoUrls: updatedOriginalUrls,
+          fotoThumbnailUrls: updatedThumbnailUrls,
+          fotoGalleryUrls: updatedGalleryUrls,
+        });
+      } catch (err) {
+        console.error("Errore durante l'upload delle foto:", err);
+        setError(
+          "Si è verificato un errore durante il caricamento delle foto."
         );
-        await uploadBytes(storageRef, file);
-        const originalUrl = await getDownloadURL(storageRef);
-
-        // 2. Crea e upload miniatura per catalogo (piccola)
-        const thumbOptions = {
-          maxSizeMB: 0.1, // 100KB
-          maxWidthOrHeight: 400,
-          useWebWorker: true,
-        };
-        const compressedFile = await imageCompression(file, thumbOptions);
-        const thumbRef = ref(
-          storage,
-          `piante/${piantaDocId}/thumb_${baseFileName}`
-        );
-        await uploadBytes(thumbRef, compressedFile);
-        const thumbnailUrl = await getDownloadURL(thumbRef);
-
-        // 3. Crea e upload miniatura per galleria (media)
-        const galleryOptions = {
-          maxSizeMB: 0.5,
-          maxWidthOrHeight: 1200,
-          useWebWorker: true,
-        };
-        const compressedGalleryFile = await imageCompression(
-          file,
-          galleryOptions
-        );
-        const galleryRef = ref(
-          storage,
-          `piante/${piantaDocId}/gallery_${baseFileName}`
-        );
-        await uploadBytes(galleryRef, compressedGalleryFile);
-        const galleryUrl = await getDownloadURL(galleryRef);
-
-        return { originalUrl, thumbnailUrl, galleryUrl };
-      });
-
-      const uploadedSets = await Promise.all(uploadPromises);
-
-      const updatedOriginalUrls = [
-        ...fotoUrls,
-        ...uploadedSets.map((p) => p.originalUrl),
-      ];
-      const updatedThumbnailUrls = [
-        ...fotoThumbnailUrls,
-        ...uploadedSets.map((p) => p.thumbnailUrl),
-      ];
-      const updatedGalleryUrls = [
-        ...fotoGalleryUrls,
-        ...uploadedSets.map((p) => p.galleryUrl),
-      ];
-
-      // Aggiorna lo stato locale
-      setFotoUrls(updatedOriginalUrls);
-      setFotoThumbnailUrls(updatedThumbnailUrls);
-      setFotoGalleryUrls(updatedGalleryUrls);
-
-      // Aggiorna subito Firestore aggiungendo le nuove foto all'array
-      const docRef = doc(db, "piante", piantaDocId);
-      await updateDoc(docRef, {
-        fotoUrls: updatedOriginalUrls,
-        fotoThumbnailUrls: updatedThumbnailUrls,
-        fotoGalleryUrls: updatedGalleryUrls,
-      });
+      } finally {
+        setUploadingPhotosCount(0);
+      }
     }
+  };
+
+  const handleAskRemovePhoto = (idx: number) => {
+    setPhotoIndexToDelete(idx);
+    setConfirmOpen(true);
   };
 
   // Gestisce la rimozione delle foto
@@ -535,49 +563,63 @@ const AggiungiPianta = () => {
               Salva la pianta per poter aggiungere le foto.
             </Alert>
           )}
-          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 3 }}>
-            {fotoUrls.length > 0 && (
+          <Box
+            sx={{
+              display: "flex",
+              gap: 2,
+              flexWrap: "wrap",
+              alignItems: "flex-start",
+              mt:
+                fotoThumbnailUrls.length > 0 || uploadingPhotosCount > 0
+                  ? 2
+                  : 0,
+            }}
+          >
+            {/* 1. Renderizza le foto già caricate */}
+            {fotoThumbnailUrls.map((url, idx) => (
               <Box
-                sx={{
-                  display: "flex",
-                  gap: 2,
-                  flexWrap: "wrap",
-                }}
+                key={idx}
+                sx={{ position: "relative", display: "inline-block" }}
               >
-                {fotoThumbnailUrls.map((url, idx) => (
-                  <Box
-                    key={idx}
-                    sx={{ position: "relative", display: "inline-block" }}
-                  >
-                    <img
-                      src={url}
-                      alt={`Foto pianta ${idx + 1}`}
-                      style={{
-                        width: 200,
-                        height: 200,
-                        borderRadius: 8,
-                        objectFit: "cover",
-                        border: "2px solid #eee",
-                      }}
-                    />
-                    <IconButton
-                      size="small"
-                      aria-label={`Rimuovi foto ${idx + 1}`}
-                      sx={{
-                        position: "absolute",
-                        top: 4,
-                        right: 4,
-                        background: "rgba(255,255,255,0.7)",
-                        "&:hover": { background: "rgba(255,255,255,1)" },
-                      }}
-                      onClick={() => handleRemoveFoto(idx)}
-                    >
-                      <CloseIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-                ))}
+                <img
+                  src={url}
+                  alt={`Foto pianta ${idx + 1}`}
+                  style={{
+                    width: 200,
+                    height: 200,
+                    borderRadius: 8,
+                    objectFit: "cover",
+                    border: "2px solid #eee",
+                  }}
+                />
+                <IconButton
+                  size="small"
+                  aria-label={`Rimuovi foto ${idx + 1}`}
+                  sx={{
+                    position: "absolute",
+                    top: 4,
+                    right: 4,
+                    background: "rgba(255,255,255,0.7)",
+                    "&:hover": { background: "rgba(255,255,255,1)" },
+                  }}
+                  onClick={() => handleAskRemovePhoto(idx)}
+                >
+                  <CloseIcon fontSize="small" />
+                </IconButton>
               </Box>
-            )}
+            ))}
+
+            {/* 2. Renderizza gli Skeleton per le foto in caricamento */}
+            {uploadingPhotosCount > 0 &&
+              Array.from(new Array(uploadingPhotosCount)).map((_, index) => (
+                <Skeleton
+                  key={`skeleton-${index}`}
+                  variant="rectangular"
+                  width={200}
+                  height={200}
+                  sx={{ borderRadius: "8px" }}
+                />
+              ))}
           </Box>
           <Button
             variant="contained"
@@ -635,6 +677,40 @@ const AggiungiPianta = () => {
           </Button>
         </Box>
       </Box>
+      <Dialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">
+          {"Conferma eliminazione foto"}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            Sei sicuro di voler eliminare questa foto? L'azione è irreversibile
+            e la foto verrà rimossa definitivamente.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmOpen(false)} color="primary">
+            Annulla
+          </Button>
+          <Button
+            onClick={() => {
+              if (photoIndexToDelete !== null) {
+                handleRemoveFoto(photoIndexToDelete);
+              }
+              setConfirmOpen(false);
+              setPhotoIndexToDelete(null);
+            }}
+            color="error"
+            autoFocus
+          >
+            Elimina
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

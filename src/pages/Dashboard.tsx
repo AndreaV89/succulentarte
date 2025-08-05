@@ -1,5 +1,5 @@
 // React
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 
@@ -20,6 +20,7 @@ import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
 import TableContainer from "@mui/material/TableContainer";
+import TableSortLabel from "@mui/material/TableSortLabel";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
@@ -27,6 +28,12 @@ import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
+import IconButton from "@mui/material/IconButton";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import Tooltip from "@mui/material/Tooltip";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import LogoutIcon from "@mui/icons-material/Logout";
 
 const storage = getStorage();
 interface Pianta {
@@ -62,6 +69,10 @@ const Dashboard = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [sortConfig, setSortConfig] = useState<{
+    key: keyof Pianta;
+    direction: "ascending" | "descending";
+  }>({ key: "updatedAt", direction: "descending" });
 
   // Carica le piante dal db
   useEffect(() => {
@@ -122,6 +133,75 @@ const Dashboard = () => {
     };
     fetchPiante();
   }, []);
+
+  // Funzione helper per estrarre un valore di data da vari formati
+  const getDateValue = (
+    value: string | number | Date | { seconds: number } | null | undefined
+  ): number | null => {
+    if (!value) return null;
+    // Controlla se è un oggetto Timestamp di Firestore
+    if (
+      typeof value === "object" &&
+      value !== null &&
+      typeof (value as { seconds?: number }).seconds === "number"
+    ) {
+      return new Date((value as { seconds: number }).seconds * 1000).getTime();
+    }
+    // Potrebbe essere già una stringa data o un oggetto Date
+    const date = new Date(value as string | number | Date);
+    if (!isNaN(date.getTime())) {
+      return date.getTime();
+    }
+    return null;
+  };
+
+  const sortedPiante = useMemo(() => {
+    const sortablePiante = [...piante];
+    if (sortConfig.key) {
+      sortablePiante.sort((a, b) => {
+        // Gestione specifica per l'ordinamento per data
+        if (sortConfig.key === "updatedAt") {
+          const dateA = getDateValue(a.updatedAt);
+          const dateB = getDateValue(b.updatedAt);
+
+          if (dateA === null) return 1;
+          if (dateB === null) return -1;
+
+          if (dateA < dateB) {
+            return sortConfig.direction === "ascending" ? -1 : 1;
+          }
+          if (dateA > dateB) {
+            return sortConfig.direction === "ascending" ? 1 : -1;
+          }
+          return 0;
+        }
+
+        // Gestione per tutti gli altri tipi (es. stringhe)
+        const aValue = a[sortConfig.key];
+        const bValue = b[sortConfig.key];
+
+        if (aValue == null) return 1;
+        if (bValue == null) return -1;
+
+        if (String(aValue).localeCompare(String(bValue)) < 0) {
+          return sortConfig.direction === "ascending" ? -1 : 1;
+        }
+        if (String(aValue).localeCompare(String(bValue)) > 0) {
+          return sortConfig.direction === "ascending" ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortablePiante;
+  }, [piante, sortConfig]);
+
+  const handleSort = (key: keyof Pianta) => {
+    let direction: "ascending" | "descending" = "ascending";
+    if (sortConfig.key === key && sortConfig.direction === "ascending") {
+      direction = "descending";
+    }
+    setSortConfig({ key, direction });
+  };
 
   const deleteAllFilesInFolder = async (folderRef: StorageReference) => {
     console.log("Tentativo di listAll su:", folderRef.fullPath);
@@ -188,49 +268,60 @@ const Dashboard = () => {
         flexGrow: 1,
         mt: "130px",
         mb: "50px",
-        textAlign: "center",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
+        mx: "auto",
+        width: "100%",
+        maxWidth: "1200px",
+        p: { xs: 2, md: 4 },
       }}
     >
-      <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
-        Benvenuto nella Dashboard!
-      </Typography>
-      <Button
-        variant="contained"
-        color="secondary"
-        onClick={handleLogout}
-        sx={{ fontWeight: 600, borderRadius: 3, px: 4, mb: 4 }}
+      <Paper
+        elevation={2}
+        sx={{
+          py: 2,
+          px: 3,
+          mb: 4,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          borderRadius: 3,
+        }}
       >
-        Logout
-      </Button>
-      <Button
-        variant="outlined"
-        color="primary"
-        sx={{ mb: 3 }}
-        onClick={() => navigate("/dashboard/categorie")}
-      >
-        Gestisci categorie
-      </Button>
-      <Button
-        variant="contained"
-        color="primary"
-        startIcon={<AddIcon />}
-        sx={{ mb: 2 }}
-        onClick={() => navigate("/dashboard/nuova")}
-      >
-        Aggiungi pianta
-      </Button>
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>
+          Dashboard
+        </Typography>
+        <Box>
+          <Button
+            variant="outlined"
+            color="primary"
+            sx={{ mr: 2 }}
+            onClick={() => navigate("/dashboard/categorie")}
+          >
+            Gestisci categorie
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={() => navigate("/dashboard/nuova")}
+          >
+            Aggiungi pianta
+          </Button>
+          <Tooltip title="Logout">
+            <IconButton onClick={handleLogout} sx={{ ml: 1.5 }}>
+              <LogoutIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </Paper>
       {error && (
-        <Box sx={{ width: "100%", maxWidth: 900, mb: 2 }}>
+        <Box sx={{ width: "100%", mb: 2 }}>
           <Alert severity="error" onClose={() => setError(null)}>
             {error}
           </Alert>
         </Box>
       )}
-      <Box sx={{ mt: 2, width: "100%", maxWidth: 900 }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>
+      <Box sx={{ mt: 2, width: "100%" }}>
+        <Typography variant="h6" sx={{ mb: 2, textAlign: "left" }}>
           Le tue piante:
         </Typography>
         {loading ? (
@@ -241,26 +332,74 @@ const Dashboard = () => {
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
-                <TableRow>
+                <TableRow sx={{ background: "#f5f5f5" }}>
                   <TableCell>
-                    <b>Specie</b>
+                    <TableSortLabel
+                      active={sortConfig.key === "specie"}
+                      direction={
+                        sortConfig.key === "specie"
+                          ? sortConfig.direction === "ascending"
+                            ? "asc"
+                            : "desc"
+                          : "asc"
+                      }
+                      onClick={() => handleSort("specie")}
+                    >
+                      <b>Specie</b>
+                    </TableSortLabel>
                   </TableCell>
                   <TableCell>
-                    <b>Famiglia</b>
+                    <TableSortLabel
+                      active={sortConfig.key === "famiglia"}
+                      direction={
+                        sortConfig.key === "famiglia"
+                          ? sortConfig.direction === "ascending"
+                            ? "asc"
+                            : "desc"
+                          : "asc"
+                      }
+                      onClick={() => handleSort("famiglia")}
+                    >
+                      <b>Famiglia</b>
+                    </TableSortLabel>
                   </TableCell>
                   <TableCell>
-                    <b>Genere</b>
+                    <TableSortLabel
+                      active={sortConfig.key === "genere"}
+                      direction={
+                        sortConfig.key === "genere"
+                          ? sortConfig.direction === "ascending"
+                            ? "asc"
+                            : "desc"
+                          : "asc"
+                      }
+                      onClick={() => handleSort("genere")}
+                    >
+                      <b>Genere</b>
+                    </TableSortLabel>
                   </TableCell>
                   <TableCell>
-                    <b>Ultima modifica</b>
+                    <TableSortLabel
+                      active={sortConfig.key === "updatedAt"}
+                      direction={
+                        sortConfig.key === "updatedAt"
+                          ? sortConfig.direction === "ascending"
+                            ? "asc"
+                            : "desc"
+                          : "asc"
+                      }
+                      onClick={() => handleSort("updatedAt")}
+                    >
+                      <b>Ultima modifica</b>
+                    </TableSortLabel>
                   </TableCell>
-                  <TableCell align="center">
+                  <TableCell align="right">
                     <b>Azioni</b>
                   </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {piante.map((pianta) => (
+                {sortedPiante.map((pianta) => (
                   <TableRow key={pianta.id}>
                     <TableCell>{pianta.specie || "-"}</TableCell>
                     <TableCell>{pianta.famiglia || "-"}</TableCell>
@@ -279,27 +418,38 @@ const Dashboard = () => {
                           ).toLocaleString("it-IT")
                         : "-"}
                     </TableCell>
-                    <TableCell align="center">
-                      <Button
-                        variant="outlined"
-                        color="primary"
-                        sx={{ mr: 1 }}
-                        onClick={() =>
-                          navigate(`/dashboard/nuova/${pianta.id}`)
-                        }
-                      >
-                        Modifica
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        color="error"
-                        onClick={() => {
-                          setDeleteId(pianta.id);
-                          setConfirmOpen(true);
-                        }}
-                      >
-                        Elimina
-                      </Button>
+                    <TableCell align="right">
+                      <Tooltip title="Visualizza pianta">
+                        <IconButton
+                          color="secondary"
+                          sx={{ mr: 1 }}
+                          onClick={() => navigate(`/pianta/${pianta.id}`)}
+                        >
+                          <VisibilityIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Modifica pianta">
+                        <IconButton
+                          color="primary"
+                          sx={{ mr: 1 }}
+                          onClick={() =>
+                            navigate(`/dashboard/nuova/${pianta.id}`)
+                          }
+                        >
+                          <EditIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Elimina pianta">
+                        <IconButton
+                          color="error"
+                          onClick={() => {
+                            setDeleteId(pianta.id);
+                            setConfirmOpen(true);
+                          }}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
                 ))}

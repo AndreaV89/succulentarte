@@ -1,5 +1,6 @@
 // React
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 // Firebase
 import { db } from "../../firebaseConfig";
@@ -42,17 +43,18 @@ import TextField from "@mui/material/TextField";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
-import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
 import Collapse from "@mui/material/Collapse";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import Checkbox from "@mui/material/Checkbox";
 import Tooltip from "@mui/material/Tooltip";
+import AddIcon from "@mui/icons-material/Add";
 
 import imageCompression from "browser-image-compression";
 
 const AggiungiCategoria = () => {
+  const navigate = useNavigate();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteType, setDeleteType] = useState<
     "famiglia" | "genere" | "bulk" | null
@@ -120,6 +122,9 @@ const AggiungiCategoria = () => {
   const [showFamigliaModal, setShowFamigliaModal] = useState(false);
   const [showGenereModal, setShowGenereModal] = useState(false);
 
+  // Stato per il feedback di salvataggio
+  const [isSaving, setIsSaving] = useState(false);
+
   // Errori
   const [notification, setNotification] = useState<{
     message: string;
@@ -182,100 +187,6 @@ const AggiungiCategoria = () => {
     setGenereFotoFile(null);
   };
 
-  // Aggiungi/modifica famiglia
-  const handleAggiungiFamiglia = async () => {
-    if (!famigliaNome.trim()) return;
-    try {
-      let fotoUrl = famigliaFotoUrl || "";
-      let fotoThumbnailUrl = famigliaFotoThumbnailUrl || "";
-      const storage = getStorage();
-
-      // Se l'utente ha rimosso una foto esistente
-      if (famigliaEdit?.fotoUrl && !famigliaFotoUrl && !famigliaFotoFile) {
-        const fotoRef = ref(storage, famigliaEdit.fotoUrl);
-        await deleteObject(fotoRef).catch((err) =>
-          console.warn("Foto originale non trovata", err)
-        );
-        if (famigliaEdit.fotoThumbnailUrl) {
-          const thumbRef = ref(storage, famigliaEdit.fotoThumbnailUrl);
-          await deleteObject(thumbRef).catch((err) =>
-            console.warn("Miniatura non trovata", err)
-          );
-        }
-        fotoUrl = "";
-        fotoThumbnailUrl = "";
-      }
-
-      // Se l'utente ha caricato una nuova foto
-      if (famigliaFotoFile) {
-        // Se c'era una vecchia foto, eliminala prima di caricare la nuova
-        if (famigliaEdit?.fotoUrl) {
-          const fotoRef = ref(storage, famigliaEdit.fotoUrl);
-          await deleteObject(fotoRef).catch((err) =>
-            console.warn("Vecchia foto non trovata", err)
-          );
-        }
-        if (famigliaEdit?.fotoThumbnailUrl) {
-          const thumbRef = ref(storage, famigliaEdit.fotoThumbnailUrl);
-          await deleteObject(thumbRef).catch((err) =>
-            console.warn("Vecchia miniatura non trovata", err)
-          );
-        }
-
-        const timestamp = Date.now();
-        const baseFileName = `${timestamp}_${famigliaFotoFile.name}`;
-
-        // Upload originale
-        const storageRef = ref(storage, `categorie/famiglie/${baseFileName}`);
-        await uploadBytes(storageRef, famigliaFotoFile);
-        fotoUrl = await getDownloadURL(storageRef);
-
-        // Crea e upload miniatura
-        const thumbOptions = {
-          maxSizeMB: 0.1,
-          maxWidthOrHeight: 400,
-          useWebWorker: true,
-        };
-        const compressedFile = await imageCompression(
-          famigliaFotoFile,
-          thumbOptions
-        );
-        const thumbRef = ref(
-          storage,
-          `categorie/famiglie/thumb_${baseFileName}`
-        );
-        await uploadBytes(thumbRef, compressedFile);
-        fotoThumbnailUrl = await getDownloadURL(thumbRef);
-      }
-
-      const data = {
-        nome: famigliaNome.trim(),
-        descrizione: famigliaDescrizione.trim(),
-        fotoUrl: fotoUrl,
-        fotoThumbnailUrl: fotoThumbnailUrl,
-      };
-
-      if (famigliaEdit) {
-        // Modifica
-        await updateDoc(doc(db, "famiglie", famigliaEdit.id), data);
-      } else {
-        // Nuova
-        await addDoc(collection(db, "famiglie"), {
-          ...data,
-          createdAt: serverTimestamp(),
-        });
-      }
-      await fetchData();
-      resetFamigliaForm();
-    } catch (err) {
-      setNotification({
-        message: "Si è verificato un errore. Riprova.",
-        severity: "error",
-      });
-      console.error(err);
-    }
-  };
-
   // Modifica famiglia
   const handleModificaFamiglia = (famiglia: {
     id: string;
@@ -292,99 +203,124 @@ const AggiungiCategoria = () => {
     setShowFamigliaModal(true);
   };
 
-  // Rimuovi foto famiglia
-  const handleRimuoviFotoFamiglia = () => {
-    setFamigliaFotoFile(null);
-    setFamigliaFotoUrl(null);
-    setFamigliaFotoThumbnailUrl(null);
+  // Salva Categoria
+  type FamigliaFormData = {
+    nome: string;
+    descrizione: string;
+    fotoUrl?: string | null;
+    fotoThumbnailUrl?: string | null;
   };
 
-  // Aggiungi/modifica genere
-  const handleAggiungiGenere = async () => {
-    if (!genereNome.trim() || !genereFamiglia) return;
+  type GenereFormData = {
+    nome: string;
+    descrizione: string;
+    famigliaId: string;
+    fotoUrl?: string | null;
+    fotoThumbnailUrl?: string | null;
+  };
+
+  const handleSalvaCategoria = async (
+    type: "famiglia" | "genere",
+    formData: FamigliaFormData | GenereFormData,
+    editData:
+      | (FamigliaFormData & { id: string })
+      | (GenereFormData & { id: string })
+      | null,
+    fotoFile: File | null
+  ) => {
+    setIsSaving(true);
     try {
-      let fotoUrl = genereFotoUrl || "";
-      let fotoThumbnailUrl = genereFotoThumbnailUrl || "";
+      const collectionName = type === "famiglia" ? "famiglie" : "generi";
+      let { fotoUrl, fotoThumbnailUrl } = formData;
       const storage = getStorage();
 
-      // Se l'utente ha rimosso una foto esistente
-      if (genereEdit?.fotoUrl && !genereFotoUrl && !genereFotoFile) {
-        const fotoRef = ref(storage, genereEdit.fotoUrl);
-        await deleteObject(fotoRef).catch((err) =>
-          console.warn("Foto originale non trovata", err)
+      // 1. Gestione foto rimossa dall'utente
+      if (editData?.fotoUrl && !fotoUrl && !fotoFile) {
+        await deleteObject(ref(storage, editData.fotoUrl)).catch((err) =>
+          console.warn("Foto non trovata", err)
         );
-        if (genereEdit.fotoThumbnailUrl) {
-          const thumbRef = ref(storage, genereEdit.fotoThumbnailUrl);
-          await deleteObject(thumbRef).catch((err) =>
-            console.warn("Miniatura non trovata", err)
+        if (editData.fotoThumbnailUrl) {
+          await deleteObject(ref(storage, editData.fotoThumbnailUrl)).catch(
+            (err) => console.warn("Miniatura non trovata", err)
           );
         }
         fotoUrl = "";
         fotoThumbnailUrl = "";
       }
 
-      // Se l'utente ha caricato una nuova foto
-      if (genereFotoFile) {
-        // Se c'era una vecchia foto, eliminala prima di caricare la nuova
-        if (genereEdit?.fotoUrl) {
-          const fotoRef = ref(storage, genereEdit.fotoUrl);
-          await deleteObject(fotoRef).catch((err) =>
+      // 2. Gestione nuova foto caricata
+      if (fotoFile) {
+        if (editData?.fotoUrl) {
+          await deleteObject(ref(storage, editData.fotoUrl)).catch((err) =>
             console.warn("Vecchia foto non trovata", err)
           );
         }
-        if (genereEdit?.fotoThumbnailUrl) {
-          const thumbRef = ref(storage, genereEdit.fotoThumbnailUrl);
-          await deleteObject(thumbRef).catch((err) =>
-            console.warn("Vecchia miniatura non trovata", err)
+        if (editData?.fotoThumbnailUrl) {
+          await deleteObject(ref(storage, editData.fotoThumbnailUrl)).catch(
+            (err) => console.warn("Vecchia miniatura non trovata", err)
           );
         }
 
         const timestamp = Date.now();
-        const baseFileName = `${timestamp}_${genereFotoFile.name}`;
+        const baseFileName = `${timestamp}_${fotoFile.name}`;
+        const storagePath = `categorie/${collectionName}/${baseFileName}`;
+        const thumbPath = `categorie/${collectionName}/thumb_${baseFileName}`;
 
-        // Upload originale
-        const storageRef = ref(storage, `categorie/generi/${baseFileName}`);
-        await uploadBytes(storageRef, genereFotoFile);
+        const storageRef = ref(storage, storagePath);
+        await uploadBytes(storageRef, fotoFile);
         fotoUrl = await getDownloadURL(storageRef);
 
-        // Crea e upload miniatura
-        const thumbOptions = {
+        const compressedFile = await imageCompression(fotoFile, {
           maxSizeMB: 0.1,
           maxWidthOrHeight: 400,
           useWebWorker: true,
-        };
-        const compressedFile = await imageCompression(
-          genereFotoFile,
-          thumbOptions
-        );
-        const thumbRef = ref(storage, `categorie/generi/thumb_${baseFileName}`);
+        });
+        const thumbRef = ref(storage, thumbPath);
         await uploadBytes(thumbRef, compressedFile);
         fotoThumbnailUrl = await getDownloadURL(thumbRef);
       }
 
-      const data = {
-        nome: genereNome.trim(),
-        descrizione: genereDescrizione.trim(),
-        famigliaId: genereFamiglia,
-        fotoUrl: fotoUrl,
-        fotoThumbnailUrl: fotoThumbnailUrl,
-      };
+      const dataToSave = { ...formData, fotoUrl, fotoThumbnailUrl };
 
-      if (genereEdit) {
-        // Modifica
-        await updateDoc(doc(db, "generi", genereEdit.id), data);
+      // 3. Salvataggio su Firestore
+      if (editData) {
+        await updateDoc(doc(db, collectionName, editData.id), dataToSave);
       } else {
-        // Nuovo
-        await addDoc(collection(db, "generi"), {
-          ...data,
+        await addDoc(collection(db, collectionName), {
+          ...dataToSave,
           createdAt: serverTimestamp(),
         });
       }
+
+      const successMessage = `${
+        type.charAt(0).toUpperCase() + type.slice(1)
+      } "${formData.nome}" ${
+        editData ? "aggiornata" : "aggiunta"
+      } con successo.`;
+      setNotification({ message: successMessage, severity: "success" });
+
       await fetchData();
-      resetGenereForm();
+      if (type === "famiglia") {
+        resetFamigliaForm();
+      } else {
+        resetGenereForm();
+      }
     } catch (err) {
-      alert("Errore: " + err);
+      console.error(`Errore salvataggio ${type}:`, err);
+      setNotification({
+        message: "Si è verificato un errore. Riprova.",
+        severity: "error",
+      });
+    } finally {
+      setIsSaving(false);
     }
+  };
+
+  // Rimuovi foto famiglia
+  const handleRimuoviFotoFamiglia = () => {
+    setFamigliaFotoFile(null);
+    setFamigliaFotoUrl(null);
+    setFamigliaFotoThumbnailUrl(null);
   };
 
   // Modifica genere
@@ -414,96 +350,80 @@ const AggiungiCategoria = () => {
 
   // Elimina famiglia
   const handleRimuoviFamiglia = async (id: string) => {
-    try {
-      const docRef = doc(db, "famiglie", id);
-      const docSnap = await getDoc(docRef);
-      if (!docSnap.exists()) return;
+    const docRef = doc(db, "famiglie", id);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) return;
 
-      const docToDelete = docSnap.data();
-      const fotoUrl = docToDelete.fotoUrl;
-      const fotoThumbnailUrl = docToDelete.data().fotoThumbnailUrl;
+    const docData = docSnap.data();
+    const fotoUrl = docData.fotoUrl;
+    const fotoThumbnailUrl = docData.fotoThumbnailUrl;
 
-      // Se esiste una foto, eliminala prima da Storage
-      if (fotoUrl) {
-        const storage = getStorage();
-        const fotoRef = ref(storage, fotoUrl);
-        await deleteObject(fotoRef).catch((err) =>
-          console.warn("Foto non trovata", err)
-        );
-      }
-      if (fotoThumbnailUrl) {
-        const storage = getStorage();
-        const thumbRef = ref(storage, fotoThumbnailUrl);
-        await deleteObject(thumbRef).catch((err) =>
-          console.warn("Miniatura non trovata", err)
-        );
-      }
-
-      // Ora elimina il documento da Firestore
-      await deleteDoc(doc(db, "famiglie", docToDelete.id));
-      await fetchData();
-    } catch (err) {
-      alert("Errore durante l'eliminazione della famiglia: " + err);
+    // Se esiste una foto, eliminala prima da Storage
+    if (fotoUrl) {
+      const storage = getStorage();
+      const fotoRef = ref(storage, fotoUrl);
+      await deleteObject(fotoRef).catch((err) =>
+        console.warn("Foto non trovata", err)
+      );
     }
+    if (fotoThumbnailUrl) {
+      const storage = getStorage();
+      const thumbRef = ref(storage, fotoThumbnailUrl);
+      await deleteObject(thumbRef).catch((err) =>
+        console.warn("Miniatura non trovata", err)
+      );
+    }
+
+    // Ora elimina il documento da Firestore
+    await deleteDoc(docRef);
   };
 
   // Elimina genere
   const handleRimuoviGenere = async (id: string) => {
-    try {
-      const docRef = doc(db, "generi", id);
-      const docSnap = await getDoc(docRef);
-      if (!docSnap.exists()) return;
+    const docRef = doc(db, "generi", id);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) return;
 
-      const docToDelete = docSnap.data();
-      const fotoUrl = docToDelete.data().fotoUrl;
-      const fotoThumbnailUrl = docToDelete.data().fotoThumbnailUrl;
+    const docData = docSnap.data();
+    const fotoUrl = docData.fotoUrl;
+    const fotoThumbnailUrl = docData.fotoThumbnailUrl;
 
-      // Se esiste una foto, eliminala prima da Storage
-      if (fotoUrl) {
-        const storage = getStorage();
-        const fotoRef = ref(storage, fotoUrl);
-        await deleteObject(fotoRef).catch((err) =>
-          console.warn("Foto non trovata", err)
-        );
-      }
-      if (fotoThumbnailUrl) {
-        const storage = getStorage();
-        const thumbRef = ref(storage, fotoThumbnailUrl);
-        await deleteObject(thumbRef).catch((err) =>
-          console.warn("Miniatura non trovata", err)
-        );
-      }
-
-      // Ora elimina il documento da Firestore
-      await deleteDoc(docRef);
-      await fetchData();
-    } catch (err) {
-      alert("Errore durante l'eliminazione del genere: " + err);
+    // Se esiste una foto, eliminala prima da Storage
+    if (fotoUrl) {
+      const storage = getStorage();
+      const fotoRef = ref(storage, fotoUrl);
+      await deleteObject(fotoRef).catch((err) =>
+        console.warn("Foto non trovata", err)
+      );
     }
+    if (fotoThumbnailUrl) {
+      const storage = getStorage();
+      const thumbRef = ref(storage, fotoThumbnailUrl);
+      await deleteObject(thumbRef).catch((err) =>
+        console.warn("Miniatura non trovata", err)
+      );
+    }
+
+    // Ora elimina il documento da Firestore
+    await deleteDoc(docRef);
   };
 
   // Eliminazione multipla
   const handleBulkDelete = async () => {
-    const promises: Promise<void>[] = [];
-    selectedFamiglie.forEach((id) => promises.push(handleRimuoviFamiglia(id)));
-    selectedGeneri.forEach((id) => promises.push(handleRimuoviGenere(id)));
+    const famigliaPromises = selectedFamiglie.map((id) =>
+      handleRimuoviFamiglia(id)
+    );
+    const generePromises = selectedGeneri.map((id) => handleRimuoviGenere(id));
 
-    try {
-      await Promise.all(promises);
-      setNotification({
-        message: "Elementi selezionati eliminati con successo.",
-        severity: "success",
-      });
-    } catch (error) {
-      setNotification({
-        message: "Errore durante l'eliminazione multipla.",
-        severity: "error",
-      });
-      console.error("Errore bulk delete:", error);
-    } finally {
-      setSelectedFamiglie([]);
-      setSelectedGeneri([]);
-      fetchData();
+    const results = await Promise.allSettled([
+      ...famigliaPromises,
+      ...generePromises,
+    ]);
+
+    const failedDeletes = results.filter((r) => r.status === "rejected");
+    if (failedDeletes.length > 0) {
+      console.error("Alcune eliminazioni sono fallite:", failedDeletes);
+      throw new Error("Errore durante l'eliminazione multipla.");
     }
   };
 
@@ -528,19 +448,35 @@ const AggiungiCategoria = () => {
 
   // Gestisce l'eliminazione di generi/famiglie
   const handleConfirmDelete = async () => {
-    if (deleteType === "famiglia" && deleteId) {
-      await handleRimuoviFamiglia(deleteId);
+    const itemNameToDelete = deleteName;
+    try {
+      if (deleteType === "famiglia" && deleteId) {
+        await handleRimuoviFamiglia(deleteId);
+      }
+      if (deleteType === "genere" && deleteId) {
+        await handleRimuoviGenere(deleteId);
+      }
+      if (deleteType === "bulk") {
+        await handleBulkDelete();
+      }
+
+      setNotification({
+        message: `"${itemNameToDelete}" eliminato/i con successo.`,
+        severity: "success",
+      });
+    } catch (error) {
+      console.error("Errore durante l'eliminazione:", error);
+      setNotification({
+        message: `Errore durante l'eliminazione di "${itemNameToDelete}".`,
+        severity: "error",
+      });
+    } finally {
+      setConfirmOpen(false);
+      setDeleteType(null);
+      setDeleteId(null);
+      setDeleteName(null);
+      fetchData();
     }
-    if (deleteType === "genere" && deleteId) {
-      await handleRimuoviGenere(deleteId);
-    }
-    if (deleteType === "bulk") {
-      await handleBulkDelete();
-    }
-    setConfirmOpen(false);
-    setDeleteType(null);
-    setDeleteId(null);
-    setDeleteName(null);
   };
 
   // Gestione selezioni per eliminazione multipla
@@ -567,9 +503,6 @@ const AggiungiCategoria = () => {
     );
   };
 
-  const famigliaIdToNameMap = new Map(famiglie.map((f) => [f.id, f.nome]));
-  console.log(famigliaIdToNameMap);
-
   return (
     <Box
       sx={{
@@ -582,26 +515,59 @@ const AggiungiCategoria = () => {
         flexGrow: 1,
       }}
     >
-      <Typography variant="h4" sx={{ mb: 3, textAlign: "center" }}>
-        Gestione categorie
-      </Typography>
+      <Paper
+        elevation={2}
+        sx={{
+          py: 2,
+          px: 3,
+          mb: 4,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          borderRadius: 3,
+        }}
+      >
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>
+          Gestione categorie
+        </Typography>
+        <Box>
+          <Button
+            variant="outlined"
+            color="primary"
+            startIcon={<AddIcon />}
+            sx={{ mr: 2 }}
+            onClick={() => setShowFamigliaModal(true)}
+          >
+            Aggiungi Famiglia
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            sx={{ mr: 2 }}
+            onClick={() => setShowGenereModal(true)}
+          >
+            Aggiungi Genere
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => navigate("/dashboard")}
+          >
+            Indietro
+          </Button>
+        </Box>
+      </Paper>
 
-      <Box sx={{ display: "flex", gap: 2, mb: 4, justifyContent: "center" }}>
-        <Button
-          variant="contained"
-          onClick={() => setShowFamigliaModal(true)}
-          aria-label="Aggiungi famiglia"
+      {notification && (
+        <Alert
+          severity={notification.severity}
+          onClose={() => setNotification(null)}
+          sx={{ mb: 2 }}
         >
-          Aggiungi Famiglia
-        </Button>
-        <Button
-          variant="contained"
-          onClick={() => setShowGenereModal(true)}
-          aria-label="Aggiungi genere"
-        >
-          Aggiungi Genere
-        </Button>
-      </Box>
+          {notification.message}
+        </Alert>
+      )}
 
       <TableContainer component={Paper}>
         <Table aria-label="collapsible table">
@@ -781,10 +747,22 @@ const AggiungiCategoria = () => {
           <Button
             variant="contained"
             color="primary"
-            onClick={handleAggiungiFamiglia}
-            disabled={!famigliaNome.trim()}
+            onClick={() =>
+              handleSalvaCategoria(
+                "famiglia",
+                {
+                  nome: famigliaNome.trim(),
+                  descrizione: famigliaDescrizione.trim(),
+                  fotoUrl: famigliaFotoUrl,
+                  fotoThumbnailUrl: famigliaFotoThumbnailUrl,
+                },
+                famigliaEdit,
+                famigliaFotoFile
+              )
+            }
+            disabled={!famigliaNome.trim() || isSaving}
           >
-            Salva
+            {isSaving ? "Salvataggio..." : "Salva"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -882,10 +860,23 @@ const AggiungiCategoria = () => {
           <Button
             variant="contained"
             color="primary"
-            onClick={handleAggiungiGenere}
-            disabled={!genereNome.trim() || !genereFamiglia}
+            onClick={() =>
+              handleSalvaCategoria(
+                "genere",
+                {
+                  nome: genereNome.trim(),
+                  descrizione: genereDescrizione.trim(),
+                  famigliaId: genereFamiglia,
+                  fotoUrl: genereFotoUrl,
+                  fotoThumbnailUrl: genereFotoThumbnailUrl,
+                },
+                genereEdit,
+                genereFotoFile
+              )
+            }
+            disabled={!genereNome.trim() || !genereFamiglia || isSaving}
           >
-            Salva
+            {isSaving ? "Salvataggio..." : "Salva"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -915,20 +906,6 @@ const AggiungiCategoria = () => {
           </Button>
         </DialogActions>
       </Dialog>
-      <Snackbar
-        open={!!notification}
-        autoHideDuration={6000}
-        onClose={() => setNotification(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert
-          onClose={() => setNotification(null)}
-          severity={notification?.severity}
-          sx={{ width: "100%" }}
-        >
-          {notification?.message}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 };
@@ -990,7 +967,11 @@ function Row(props: {
   return (
     <>
       {/* Riga principale della famiglia */}
-      <TableRow sx={{ "& > *": { borderBottom: "unset" } }}>
+      <TableRow
+        sx={{
+          borderBottom: "1px solid #f5f5f5",
+        }}
+      >
         <TableCell padding="checkbox">
           <Checkbox
             color="primary"
@@ -999,9 +980,11 @@ function Row(props: {
           />
         </TableCell>
         <TableCell sx={{ width: 60 }}>
-          <IconButton aria-label="expand row" onClick={setOpen} sx={{ p: 0 }}>
-            {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-          </IconButton>
+          {generi.length > 0 && (
+            <IconButton aria-label="expand row" onClick={setOpen} sx={{ p: 0 }}>
+              {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+            </IconButton>
+          )}
         </TableCell>
         <TableCell component="th" scope="row" sx={{ width: "20%" }}>
           {famiglia.nome}
@@ -1018,19 +1001,25 @@ function Row(props: {
           {famiglia.descrizione}
         </TableCell>
         <TableCell align="right">
-          <IconButton
-            size="small"
-            onClick={() => handleModificaFamiglia(famiglia)}
-          >
-            <EditIcon />
-          </IconButton>
-          <IconButton
-            size="small"
-            color="error"
-            onClick={() => askDelete("famiglia", famiglia.id, famiglia.nome)}
-          >
-            <DeleteIcon />
-          </IconButton>
+          <Tooltip title="Modifica famiglia">
+            <IconButton
+              color="primary"
+              size="small"
+              onClick={() => handleModificaFamiglia(famiglia)}
+              sx={{ mr: 1 }}
+            >
+              <EditIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Elimina famiglia">
+            <IconButton
+              size="small"
+              color="error"
+              onClick={() => askDelete("famiglia", famiglia.id, famiglia.nome)}
+            >
+              <DeleteIcon />
+            </IconButton>
+          </Tooltip>
         </TableCell>
       </TableRow>
 
@@ -1073,21 +1062,27 @@ function Row(props: {
                           {genere.descrizione}
                         </TableCell>
                         <TableCell align="right">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleModificaGenere(genere)}
-                          >
-                            <EditIcon />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() =>
-                              askDelete("genere", genere.id, genere.nome)
-                            }
-                          >
-                            <DeleteIcon />
-                          </IconButton>
+                          <Tooltip title="Modifica genere">
+                            <IconButton
+                              color="primary"
+                              size="small"
+                              onClick={() => handleModificaGenere(genere)}
+                              sx={{ mr: 1 }}
+                            >
+                              <EditIcon />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Elimina genere">
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() =>
+                                askDelete("genere", genere.id, genere.nome)
+                              }
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </Tooltip>
                         </TableCell>
                       </TableRow>
                     ))

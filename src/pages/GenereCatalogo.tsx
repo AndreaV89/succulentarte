@@ -128,9 +128,14 @@ const GenereCatalogo = () => {
     >
       {loading ? (
         <>
-          <Skeleton variant="text" width={200} height={24} sx={{ mb: 2 }} />
-          <Skeleton variant="text" width={400} height={42} sx={{ mb: 3 }} />
-          <Skeleton variant="rounded" width="100%" height={80} sx={{ mb: 4 }} />
+          <Skeleton variant="rounded" width={400} height={24} sx={{ mb: 2 }} />
+          <Skeleton variant="rounded" width={400} height={42} sx={{ mb: 3 }} />
+          <Skeleton
+            variant="rounded"
+            width={1200}
+            height={150}
+            sx={{ mb: 4 }}
+          />
         </>
       ) : (
         famiglia &&

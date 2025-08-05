@@ -5,6 +5,9 @@ import CardMedia from "@mui/material/CardMedia";
 import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
 
+// Fallback image
+import { FALLBACK_IMAGE_URL } from "../utils/constants";
+
 interface CardPiantaProps {
   id: string;
   specie: string;
@@ -16,43 +19,34 @@ const CardPianta = ({ specie, fotoUrl, onClick }: CardPiantaProps) => (
   <Card
     sx={{
       width: 320,
-      borderRadius: 2,
-      boxShadow: "0 4px 24px rgba(0,0,0,0.10)",
-      overflow: "hidden",
-      p: 0,
-      background: "#fafbfc",
-      border: "2px solid #FFC107",
-      transition: "transform 0.15s",
+      borderRadius: 4,
+      boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+      transition: "transform 0.3s ease, box-shadow 0.3s ease",
       "&:hover": {
-        transform: "translateY(-4px)",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.16)",
+        transform: "translateY(-6px)",
+        boxShadow: "0 12px 24px rgba(0,0,0,0.12)",
       },
     }}
-    aria-label={`Scheda ${specie}`}
-    tabIndex={0}
   >
-    <CardActionArea onClick={onClick} sx={{ p: 0, height: "100%" }}>
+    <CardActionArea onClick={onClick} aria-label={`Scheda ${specie}`}>
       <CardMedia
         component="img"
-        image={
-          fotoUrl ||
-          "https://us.123rf.com/450wm/pixora/pixora2503/pixora250322977/242679423-stylish-navelwort-houseplant-art.jpg?ver=6"
-        }
+        height="320" // Altezza fissa per l'immagine
+        image={fotoUrl || FALLBACK_IMAGE_URL}
         alt={specie}
-        sx={{
-          width: "100%",
-          height: 350,
-          objectFit: "cover",
-
-          background: "#e0e0e0",
-        }}
+        sx={{ objectFit: "cover" }}
       />
-      <CardContent sx={{ py: 2 }}>
+      <CardContent
+        sx={{
+          textAlign: "center",
+          backgroundColor: "#fff", // Sfondo bianco per il contenuto
+        }}
+      >
         <Typography
+          gutterBottom
           variant="h6"
           component="div"
-          align="center"
-          sx={{ fontWeight: 700, color: "#222" }}
+          sx={{ fontWeight: 600 }}
         >
           {specie}
         </Typography>

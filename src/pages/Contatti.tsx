@@ -20,7 +20,7 @@ import EmailIcon from "@mui/icons-material/Email";
 // Utils
 import axios from "axios";
 
-const CLOUD_FUNCTION_URL = "https://sendcontactmail-puxlsugwjq-uc.a.run.app";
+const PHP_SCRIPT_URL = "https://www.succulentarte.com/send_email.php";
 
 const Contatti = () => {
   const [nome, setNome] = React.useState("");
@@ -43,7 +43,7 @@ const Contatti = () => {
     setLoading(true);
 
     try {
-      await axios.post(CLOUD_FUNCTION_URL, { nome, email, messaggio });
+      await axios.post(PHP_SCRIPT_URL, { nome, email, messaggio });
       setSuccess("Messaggio inviato! Grazie per avermi contattato.");
       setNome("");
       setEmail("");

@@ -23,14 +23,36 @@ import SitoInSviluppo from "./pages/SitoInSviluppo";
 function App() {
   const inSviluppo = true;
 
-  // if (inSviluppo) {
-  //   return <SitoInSviluppo />;
-  // }
-
   return (
     <>
-      {!inSviluppo && <Header />}
+      <Header />
+
       <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/nuova/:id?"
+          element={
+            <ProtectedRoute>
+              <AggiungiPianta />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="dashboard/categorie"
+          element={
+            <ProtectedRoute>
+              <AggiungiCategoria />
+            </ProtectedRoute>
+          }
+        />
         {inSviluppo ? (
           <Route path="*" element={<SitoInSviluppo />} />
         ) : (
@@ -38,7 +60,6 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/indice" element={<Indice />} />
             <Route path="/contatti" element={<Contatti />} />
-            <Route path="/login" element={<Login />} />
             <Route path="/pianta/:id" element={<Pianta />} />
             <Route
               path="/catalogo/famiglia/:famigliaId"
@@ -48,30 +69,7 @@ function App() {
               path="/catalogo/genere/:genereId"
               element={<GenereCatalogo />}
             />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/nuova/:id?"
-              element={
-                <ProtectedRoute>
-                  <AggiungiPianta />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="dashboard/categorie"
-              element={
-                <ProtectedRoute>
-                  <AggiungiCategoria />
-                </ProtectedRoute>
-              }
-            />
+
             <Route path="*" element={<NotFound />} />
           </>
         )}

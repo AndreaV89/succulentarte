@@ -332,7 +332,10 @@ const Header = (): JSX.Element => {
               color: "white",
               textDecoration: "none",
               zIndex: 10,
-              display: { xs: "none", lg: "flex" },
+              display: "none",
+              "@media (min-width: 1400px)": {
+                display: "flex",
+              },
               pointerEvents: "auto",
             }}
           >

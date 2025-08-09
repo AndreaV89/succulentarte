@@ -1,48 +1,47 @@
-import * as functions from "firebase-functions";
+// functions/src/index.ts
+
+import { onRequest } from "firebase-functions/v2/https";
+import * as logger from "firebase-functions/logger";
 import * as nodemailer from "nodemailer";
 import  cors from "cors";
 
-// Inizializza il gestore CORS per permettere le richieste dal tuo sito
-const corsHandler = cors({origin: true});
+const corsHandler = cors({ origin: true });
 
-export const sendContactMail = functions.https.onRequest((req, res) => {
-  // Applica il gestore CORS a OGNI richiesta che arriva.
-  // Questo risolve il problema del "preflight request".
+// Definiamo le nostre variabili d'ambiente
+const GMAIL_EMAIL = process.env.GMAIL_EMAIL;
+const GMAIL_PASSWORD = process.env.GMAIL_PASSWORD;
+
+export const sendcontactmail = onRequest({ secrets: ["GMAIL_EMAIL", "GMAIL_PASSWORD"] }, (req, res) => {
   corsHandler(req, res, async () => {
-    // Il resto del codice rimane quasi identico
     try {
-      const gmailEmail = functions.config().gmail.email;
-      const gmailPassword = functions.config().gmail.password;
+      if (!GMAIL_EMAIL || !GMAIL_PASSWORD) {
+        logger.error("Le credenziali Gmail non sono configurate come variabili d'ambiente.");
+        res.status(500).json({ message: "Errore di configurazione del server." });
+        return;
+      }
+      
+      if (req.method !== "POST") {
+        res.status(204).send();
+        return;
+      }
 
-      if (!gmailEmail || !gmailPassword) {
-        console.error("Credenziali Gmail non configurate.");
-        res.status(500).send("Errore di configurazione del server.");
+      const { nome, email, messaggio } = req.body;
+      if (!nome || !email || !messaggio) {
+        res.status(400).json({ message: "Dati mancanti." });
         return;
       }
 
       const mailTransport = nodemailer.createTransport({
         service: "gmail",
         auth: {
-          user: gmailEmail,
-          pass: gmailPassword,
+          user: GMAIL_EMAIL,
+          pass: GMAIL_PASSWORD,
         },
       });
 
-      if (req.method !== "POST") {
-        res.status(405).send("Method Not Allowed");
-        return;
-      }
-
-      const {nome, email, messaggio} = req.body;
-
-      if (!nome || !email || !messaggio) {
-        res.status(400).send("Dati mancanti.");
-        return;
-      }
-
       const mailOptions = {
-        from: `"${nome}" <${gmailEmail}>`,
-        to: gmailEmail,
+        from: `"${nome}" <${GMAIL_EMAIL}>`,
+        to: GMAIL_EMAIL,
         subject: `Nuovo messaggio da ${nome} su SucculentArte`,
         html: `
           <p><strong>Nome:</strong> ${nome}</p>
@@ -53,11 +52,12 @@ export const sendContactMail = functions.https.onRequest((req, res) => {
       };
 
       await mailTransport.sendMail(mailOptions);
-      console.log("Email inviata con successo a:", gmailEmail);
-      res.status(200).send("Messaggio inviato con successo!");
+      logger.info("Email inviata con successo a:", GMAIL_EMAIL);
+      res.status(200).json({ message: "Messaggio inviato con successo!" });
+
     } catch (error) {
-      console.error("Errore nell'invio dell'email:", error);
-      res.status(500).send("Errore interno del server.");
+      logger.error("Errore critico nella funzione:", error);
+      res.status(500).json({ message: "Errore interno del server." });
     }
   });
 });

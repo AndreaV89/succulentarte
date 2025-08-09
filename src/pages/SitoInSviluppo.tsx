@@ -1,18 +1,11 @@
-// src/pages/SitoInSviluppo.tsx
-
-// React
-import { useNavigate } from "react-router-dom";
-
 // MUI
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
+import Link from "@mui/material/Link";
 import ConstructionIcon from "@mui/icons-material/Construction";
 import EmailIcon from "@mui/icons-material/Email";
 
 const SitoInSviluppo = () => {
-  const navigate = useNavigate();
-
   return (
     <Box
       sx={{
@@ -41,20 +34,19 @@ const SitoInSviluppo = () => {
         Stiamo lavorando per far sbocciare la versione finale di SucculentArte.
         Torna a trovarci presto per scoprire il nostro catalogo completo!
       </Typography>
-      <Button
-        href="mailto:r.vannetti@gmail.com" // Puoi cambiare la tua email qui
-        variant="contained"
-        color="primary"
-        size="large"
-        startIcon={<EmailIcon />}
-        sx={{
-          borderRadius: 8,
-          px: 4,
-          fontWeight: 700,
-        }}
-      >
-        Contattami
-      </Button>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <EmailIcon color="action" />
+        <Typography variant="body1">
+          Per informazioni:{" "}
+          <Link
+            href="mailto:r.vannetti@gmail.com"
+            underline="hover"
+            sx={{ fontWeight: "bold", color: "primary.main" }}
+          >
+            r.vannetti@gmail.com
+          </Link>
+        </Typography>
+      </Box>
     </Box>
   );
 };

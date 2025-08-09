@@ -21,7 +21,7 @@ import GenereCatalogo from "./pages/GenereCatalogo";
 import SitoInSviluppo from "./pages/SitoInSviluppo";
 
 function App() {
-  const inSviluppo = false;
+  const inSviluppo = true;
 
   // if (inSviluppo) {
   //   return <SitoInSviluppo />;

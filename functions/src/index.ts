@@ -1,15 +1,16 @@
-
-
 import * as functions from "firebase-functions";
 import * as nodemailer from "nodemailer";
 import  cors from "cors";
 
+// Inizializza il gestore CORS per permettere le richieste dal tuo sito
 const corsHandler = cors({origin: true});
 
 export const sendContactMail = functions.https.onRequest((req, res) => {
+  // Applica il gestore CORS a OGNI richiesta che arriva.
+  // Questo risolve il problema del "preflight request".
   corsHandler(req, res, async () => {
+    // Il resto del codice rimane quasi identico
     try {
-      // --- Blocco di inizializzazione spostato qui dentro ---
       const gmailEmail = functions.config().gmail.email;
       const gmailPassword = functions.config().gmail.password;
 
@@ -26,7 +27,6 @@ export const sendContactMail = functions.https.onRequest((req, res) => {
           pass: gmailPassword,
         },
       });
-      // --- Fine blocco di inizializzazione ---
 
       if (req.method !== "POST") {
         res.status(405).send("Method Not Allowed");

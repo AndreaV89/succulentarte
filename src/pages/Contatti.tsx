@@ -40,13 +40,6 @@ const Contatti = () => {
       return;
     }
 
-    if (
-      CLOUD_FUNCTION_URL === "https://sendcontactmail-puxlsugwjq-uc.a.run.app"
-    ) {
-      setError("La funzione di invio non è ancora configurata.");
-      return;
-    }
-
     setLoading(true);
 
     try {

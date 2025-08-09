@@ -1,29 +1,18 @@
 // React
 import { useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-// Firebase
-import {
-  getDocs,
-  collection,
-  query,
-  where,
-  getDoc,
-  doc,
-} from "firebase/firestore";
-import { db } from "../../firebaseConfig";
+import { useData } from "../context/DataContext";
 
 // MUI
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Grid from "@mui/material/Grid";
-import CardPianta from "../components/CardPianta";
+import CardPianta, { CardPiantaSkeleton } from "../components/CardPianta";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import Link from "@mui/material/Link";
 import Skeleton from "@mui/material/Skeleton";
 
-// Fallback image
+// Utils
 import { FALLBACK_IMAGE_URL } from "../utils/constants";
 
 interface Famiglia {
@@ -36,67 +25,18 @@ interface Genere {
   id: string;
   nome: string;
   fotoUrl?: string;
+  famigliaId: string;
 }
 
 const FamigliaCatalogo = () => {
   const navigate = useNavigate();
   const { famigliaId } = useParams<{ famigliaId: string }>();
-  const [famiglia, setFamiglia] = useState<Famiglia | null>(null);
-  const [generi, setGeneri] = useState<Genere[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!famigliaId) {
-      setLoading(false);
-      return;
-    }
-
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        // Esegui le query per la famiglia e i generi in parallelo
-        const famigliaDocRef = doc(db, "famiglie", famigliaId);
-        const generiQuery = query(
-          collection(db, "generi"),
-          where("famigliaId", "==", famigliaId)
-        );
-
-        const [famigliaDocSnap, generiSnap] = await Promise.all([
-          getDoc(famigliaDocRef),
-          getDocs(generiQuery),
-        ]);
-
-        // Elabora i risultati
-        if (famigliaDocSnap.exists()) {
-          setFamiglia({
-            id: famigliaDocSnap.id,
-            ...famigliaDocSnap.data(),
-          } as Famiglia);
-        } else {
-          console.error("Nessuna famiglia trovata con questo ID:", famigliaId);
-          setFamiglia(null); // Pulisci lo stato se non trovata
-        }
-
-        setGeneri(
-          generiSnap.docs.map((doc) => ({
-            id: doc.id,
-            nome: doc.data().nome,
-            fotoUrl: doc.data().fotoThumbnailUrl || doc.data().fotoUrl,
-          }))
-        );
-      } catch (error) {
-        console.error("Errore durante il recupero dei dati:", error);
-        // Resetta gli stati in caso di errore
-        setFamiglia(null);
-        setGeneri([]);
-      } finally {
-        // Questo blocco viene eseguito SEMPRE, garantendo che il caricamento termini
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [famigliaId]);
+  const { famiglie, generi, loading: dataLoading } = useData();
+  const famiglia = (famiglie as Famiglia[]).find((f) => f.id === famigliaId);
+  const generiFiltrati = generi.filter(
+    (g: Genere) => g.famigliaId === famigliaId
+  );
 
   return (
     <Box
@@ -104,12 +44,12 @@ const FamigliaCatalogo = () => {
         flexGrow: 1,
         mt: "130px",
         mb: "50px",
-        maxWidth: "1200px",
+        maxWidth: "1100px",
         mx: "auto",
         px: 2,
       }}
     >
-      {loading ? (
+      {dataLoading ? (
         <>
           <Skeleton variant="rounded" width={400} height={24} sx={{ mb: 2 }} />
           <Skeleton variant="rounded" width={400} height={42} sx={{ mb: 3 }} />
@@ -146,33 +86,31 @@ const FamigliaCatalogo = () => {
 
       <Grid
         container
-        spacing={2}
+        spacing={4}
         sx={{ maxWidth: "1200px", margin: "auto" }}
         justifyContent="center"
       >
-        {loading ? (
+        {dataLoading ? (
           Array.from(new Array(6)).map((_, index) => (
-            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={index}>
-              <Skeleton variant="rounded" height={414} />
+            <Grid key={index}>
+              <CardPiantaSkeleton />
             </Grid>
           ))
-        ) : generi.length === 0 ? (
+        ) : generiFiltrati.length === 0 ? (
           <Grid size={{ xs: 12 }}>
             <Box sx={{ textAlign: "center", py: 6, color: "#888" }}>
               Nessun genere trovato per questa famiglia.
             </Box>
           </Grid>
         ) : (
-          generi.map((g) => (
-            <Grid
-              size={{ xs: 12, sm: 6, md: 4 }}
-              key={g.id}
-              sx={{ display: "flex", justifyContent: "center" }}
-            >
+          generiFiltrati.map((g: Genere) => (
+            <Grid key={g.id}>
               <CardPianta
-                id={g.id}
-                specie={g.nome}
-                fotoUrl={g.fotoUrl || FALLBACK_IMAGE_URL}
+                pianta={{
+                  id: g.id,
+                  specie: g.nome, // Usiamo il nome del genere come titolo
+                  fotoUrls: [g.fotoUrl || FALLBACK_IMAGE_URL], // Creiamo un array con l'URL
+                }}
                 onClick={() => navigate(`/catalogo/genere/${g.id}`)}
               />
             </Grid>

@@ -1,6 +1,7 @@
 // React
 import { useState, useEffect, type JSX } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useData } from "../context/DataContext";
 
 // Firestore
 import { collection, query, where, getDocs } from "firebase/firestore";
@@ -23,13 +24,18 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import SearchIcon from "@mui/icons-material/Search";
+import Avatar from "@mui/material/Avatar";
+import ImageIcon from "@mui/icons-material/Image";
 
-type PlantResult = {
+// Utils
+import { getResizedImageUrls } from "../utils/imageUtils";
+
+type SearchResult = {
   id: string;
-  specie: string;
-  genere: string;
-  famiglia: string;
   label: string;
+  type: "pianta" | "genere" | "famiglia";
+  subtitle: string;
+  imageUrl?: string;
 };
 
 const pages = [
@@ -70,13 +76,14 @@ const Header = (): JSX.Element => {
   const [anchorElNav, setAnchorElNav] = useState<null | HTMLElement>(null);
   const [scrolled, setScrolled] = useState(false);
   const [searchValue, setSearchValue] = useState("");
-  const [results, setResults] = useState<PlantResult[]>([]);
+  const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const navigate = useNavigate();
+  const { famiglieMap, generiMap, loading: dataLoading } = useData();
 
   // Ricerca
   useEffect(() => {
-    if (searchValue.length < 2) {
+    if (searchValue.length < 2 || dataLoading) {
       setResults([]);
       setSearching(false);
       return;
@@ -84,87 +91,117 @@ const Header = (): JSX.Element => {
     setSearching(true);
 
     const fetch = setTimeout(async () => {
-      const col = collection(db, "piante");
       const searchLower = searchValue.toLowerCase();
+      const searchCapitalized =
+        searchLower.charAt(0).toUpperCase() + searchLower.slice(1);
 
-      const q1 = query(
-        col,
-        where("specie", ">=", searchValue),
-        where("specie", "<=", searchValue + "\uf8ff")
-      );
-
-      const q2 = query(
-        col,
-        where("genere", ">=", searchValue),
-        where("genere", "<=", searchValue + "\uf8ff")
-      );
-
-      const q3 = query(
-        col,
-        where("famiglia", ">=", searchValue),
-        where("famiglia", "<=", searchValue + "\uf8ff")
-      );
-
-      const [snap1, snap2, snap3] = await Promise.all([
-        getDocs(q1),
-        getDocs(q2),
-        getDocs(q3),
+      const [pianteSnap, generiSnap, famiglieSnap] = await Promise.all([
+        getDocs(
+          query(
+            collection(db, "piante"),
+            where("specie", ">=", searchLower),
+            where("specie", "<=", searchLower + "\uf8ff")
+          )
+        ),
+        getDocs(
+          query(
+            collection(db, "generi"),
+            where("nome", ">=", searchCapitalized),
+            where("nome", "<=", searchCapitalized + "\uf8ff")
+          )
+        ),
+        getDocs(
+          query(
+            collection(db, "famiglie"),
+            where("nome", ">=", searchCapitalized),
+            where("nome", "<=", searchCapitalized + "\uf8ff")
+          )
+        ),
       ]);
 
-      const allDocs = [...snap1.docs, ...snap2.docs, ...snap3.docs];
+      // 3. Formattiamo i risultati per ogni tipo
+      const pianteResults: SearchResult[] = pianteSnap.docs.map((doc) => {
+        const data = doc.data();
+        let copertinaUrl: string | undefined;
+        if (data.fotoUrls && data.fotoUrls.length > 0) {
+          const coverIndex = data.fotoCopertinaIndex ?? 0;
+          copertinaUrl = data.fotoUrls[coverIndex] || data.fotoUrls[0];
+        }
+        const imageUrls = getResizedImageUrls(copertinaUrl);
+        return {
+          id: doc.id,
+          label: data.specie,
+          type: "pianta",
+          subtitle: `${generiMap.get(data.genereId) || "Genere"} – ${
+            famiglieMap.get(data.famigliaId) || "Famiglia"
+          }`,
+          imageUrl: imageUrls.thumbnail,
+        };
+      });
 
-      const unique = Array.from(
-        new Map(allDocs.map((doc) => [doc.id, doc])).values()
-      );
+      const generiResults: SearchResult[] = generiSnap.docs.map((doc) => {
+        const data = doc.data();
+        const fotoUrl = data.fotoUrl || data.fotoThumbnailUrl;
+        let thumbnailUrl: string | undefined;
+        if (fotoUrl) {
+          const imageUrls = getResizedImageUrls(fotoUrl);
+          thumbnailUrl = imageUrls.thumbnail;
+        }
+        return {
+          id: doc.id,
+          label: data.nome,
+          type: "genere",
+          subtitle: "Genere",
+          imageUrl: thumbnailUrl,
+        };
+      });
 
-      // 1. Se abbiamo trovato delle piante, recuperiamo le tabelle di conversione (generi e famiglie)
-      let generiMap = new Map();
-      let famiglieMap = new Map();
+      const famiglieResults: SearchResult[] = famiglieSnap.docs.map((doc) => {
+        const data = doc.data();
+        const fotoUrl = data.fotoUrl || data.fotoThumbnailUrl;
+        let thumbnailUrl: string | undefined;
+        if (fotoUrl) {
+          const imageUrls = getResizedImageUrls(fotoUrl);
+          thumbnailUrl = imageUrls.thumbnail;
+        }
+        return {
+          id: doc.id,
+          label: data.nome,
+          type: "famiglia",
+          subtitle: "Famiglia",
+          imageUrl: thumbnailUrl,
+        };
+      });
 
-      if (unique.length > 0) {
-        const [allGeneriSnap, allFamiglieSnap] = await Promise.all([
-          getDocs(collection(db, "generi")),
-          getDocs(collection(db, "famiglie")),
-        ]);
-        // 2. Creiamo delle "mappe" per una ricerca super-veloce (ID -> Nome)
-        generiMap = new Map(
-          allGeneriSnap.docs.map((doc) => [doc.id, doc.data().nome])
-        );
-        famiglieMap = new Map(
-          allFamiglieSnap.docs.map((doc) => [doc.id, doc.data().nome])
-        );
-      }
+      const combinedResults = [
+        ...famiglieResults,
+        ...generiResults,
+        ...pianteResults,
+      ];
 
-      // 3. Mappiamo i risultati finali, usando le mappe per tradurre gli ID in nomi
-      const arr = unique
-        .map((doc) => {
-          const piantaData = doc.data();
-          return {
-            id: doc.id,
-            specie: piantaData.specie,
-            genere: generiMap.get(piantaData.genereId) || "", // Traduzione
-            famiglia: famiglieMap.get(piantaData.famigliaId) || "", // Traduzione
-            label: piantaData.specie || "",
-          };
-        })
-        .filter(
-          (p) =>
-            (p.specie && p.specie.toLowerCase().includes(searchLower)) ||
-            (p.genere && p.genere.toLowerCase().includes(searchLower)) ||
-            (p.famiglia && p.famiglia.toLowerCase().includes(searchLower))
-        );
-      console.log(arr[0]);
-
-      setResults(arr.slice(0, 8));
+      setResults(combinedResults.slice(0, 8));
       setSearching(false);
     }, 300);
 
     return () => clearTimeout(fetch);
-  }, [searchValue]);
+  }, [searchValue, dataLoading, famiglieMap, generiMap]);
 
   // Gestisce il click su un risultato
-  const handleResultClick = (id: string) => {
-    navigate(`/pianta/${id}`);
+  const handleResultClick = (result: SearchResult) => {
+    switch (result.type) {
+      case "pianta":
+        navigate(`/pianta/${result.id}`);
+        break;
+      case "genere":
+        navigate(`/catalogo/genere/${result.id}`);
+        break;
+      case "famiglia":
+        navigate(`/catalogo/famiglia/${result.id}`);
+        break;
+      default:
+        break;
+    }
+    // Pulisci la ricerca dopo il click
     setTimeout(() => {
       setSearchValue("");
       setResults([]);
@@ -318,7 +355,7 @@ const Header = (): JSX.Element => {
               onInputChange={(_, value) => setSearchValue(value)}
               onChange={(_, value) => {
                 if (value && typeof value !== "string" && value.id)
-                  handleResultClick(value.id);
+                  handleResultClick(value);
               }}
               open={
                 searchValue.length >= 2 && (results.length > 0 || searching)
@@ -363,11 +400,27 @@ const Header = (): JSX.Element => {
               )}
               renderOption={(props, option) => (
                 <li {...props} key={option.id}>
-                  <Box>
-                    <Typography variant="subtitle2">{option.specie}</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {option.genere} – {option.famiglia}
-                    </Typography>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      width: "100%",
+                    }}
+                  >
+                    <Avatar
+                      src={option.imageUrl}
+                      sx={{ mr: 2, width: 40, height: 40 }}
+                    >
+                      <ImageIcon />
+                    </Avatar>
+                    <Box>
+                      <Typography variant="subtitle2">
+                        {option.label}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {option.subtitle}
+                      </Typography>
+                    </Box>
                   </Box>
                 </li>
               )}

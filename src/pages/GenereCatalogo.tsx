@@ -1,36 +1,29 @@
 // React
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useData } from "../context/DataContext";
 
 // Firebase
-import {
-  getDocs,
-  collection,
-  query,
-  where,
-  doc,
-  getDoc,
-} from "firebase/firestore";
+import { getDocs, collection, query, where } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
+
+// Componenti
+import CardPianta, { CardPiantaSkeleton } from "../components/CardPianta";
 
 // MUI
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Grid from "@mui/material/Grid";
 import Skeleton from "@mui/material/Skeleton";
-import CardPianta from "../components/CardPianta";
+
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import Link from "@mui/material/Link";
-
-// Fallback image
-import { FALLBACK_IMAGE_URL } from "../utils/constants";
 
 interface Genere {
   id: string;
   nome: string;
-  descrizione: string;
   famigliaId: string;
+  descrizione?: React.ReactNode;
 }
 
 interface Famiglia {
@@ -41,80 +34,43 @@ interface Famiglia {
 interface Pianta {
   id: string;
   specie: string;
-  fotoUrl?: string;
+  fotoUrls?: string[];
+  fotoCopertinaIndex?: number;
 }
 
 const GenereCatalogo = () => {
   const navigate = useNavigate();
   const { genereId } = useParams<{ genereId: string }>();
-  const [genere, setGenere] = useState<Genere | null>(null);
-  const [famiglia, setFamiglia] = useState<Famiglia | null>(null);
+  const { generi, famiglie, loading: dataLoading } = useData();
+
+  const genere = generi.find((g: Genere) => g.id === genereId);
+  const famiglia = famiglie.find((f: Famiglia) => f.id === genere?.famigliaId);
+
   const [piante, setPiante] = useState<Pianta[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [pianteLoading, setPianteLoading] = useState(true);
 
   useEffect(() => {
-    if (!genereId) {
-      setLoading(false);
-      return;
-    }
-
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        // 2. Recupera i dati del genere usando l'ID
-        const genereDocRef = doc(db, "generi", genereId);
-        const genereDocSnap = await getDoc(genereDocRef);
-
-        if (!genereDocSnap.exists()) {
-          console.error("Nessun genere trovato con questo ID:", genereId);
-          throw new Error("Genere non trovato");
-        }
-
-        const genereData = {
-          id: genereDocSnap.id,
-          ...genereDocSnap.data(),
-        } as Genere;
-        setGenere(genereData);
-
-        // 3. Una volta ottenuto il genere, recupera la famiglia e le piante in parallelo
-        const famigliaDocRef = doc(db, "famiglie", genereData.famigliaId);
-        const pianteQuery = query(
-          collection(db, "piante"),
-          where("genereId", "==", genereId)
-        );
-
-        const [famigliaDocSnap, pianteSnap] = await Promise.all([
-          getDoc(famigliaDocRef),
-          getDocs(pianteQuery),
-        ]);
-
-        // Elabora i risultati
-        if (famigliaDocSnap.exists()) {
-          setFamiglia({
-            id: famigliaDocSnap.id,
-            ...famigliaDocSnap.data(),
-          } as Famiglia);
-        }
-
-        setPiante(
-          pianteSnap.docs.map((doc) => ({
-            id: doc.id,
-            specie: doc.data().specie,
-            fotoUrl: doc.data().fotoThumbnailUrl || doc.data().fotoUrl,
-          }))
-        );
-      } catch (error) {
-        console.error("Errore durante il recupero dei dati:", error);
-        setGenere(null);
-        setFamiglia(null);
-        setPiante([]);
-      } finally {
-        setLoading(false);
-      }
+    // Questo useEffect ora carica SOLO le piante
+    const fetchPiante = async () => {
+      if (!genereId) return;
+      setPianteLoading(true);
+      const pianteQuery = query(
+        collection(db, "piante"),
+        where("genereId", "==", genereId)
+      );
+      const pianteSnap = await getDocs(pianteQuery);
+      const pianteData = pianteSnap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Pianta[];
+      setPiante(pianteData);
+      setPianteLoading(false);
     };
-
-    fetchData();
+    fetchPiante();
   }, [genereId]);
+
+  const isLoading = dataLoading || pianteLoading;
+  console.log(piante);
 
   return (
     <Box
@@ -122,11 +78,11 @@ const GenereCatalogo = () => {
         flexGrow: 1,
         mt: "130px",
         mb: "50px",
-        maxWidth: "1200px",
+        maxWidth: "1100px",
         mx: "auto",
       }}
     >
-      {loading ? (
+      {isLoading ? (
         <>
           <Skeleton variant="rounded" width={400} height={24} sx={{ mb: 2 }} />
           <Skeleton variant="rounded" width={400} height={42} sx={{ mb: 3 }} />
@@ -138,14 +94,12 @@ const GenereCatalogo = () => {
           />
         </>
       ) : (
-        famiglia &&
         genere && (
           <>
             <Breadcrumbs sx={{ mb: 2 }}>
               <Link
                 sx={{ cursor: "pointer" }}
                 underline="hover"
-                color="inherit"
                 onClick={() => navigate("/")}
               >
                 Home
@@ -153,10 +107,9 @@ const GenereCatalogo = () => {
               <Link
                 sx={{ cursor: "pointer" }}
                 underline="hover"
-                color="inherit"
-                onClick={() => navigate(`/catalogo/famiglia/${famiglia.id}`)}
+                onClick={() => navigate(`/catalogo/famiglia/${famiglia?.id}`)}
               >
-                {famiglia.nome}
+                {famiglia?.nome}
               </Link>
               <Typography color="text.primary">{genere.nome}</Typography>
             </Breadcrumbs>
@@ -172,39 +125,26 @@ const GenereCatalogo = () => {
 
       <Grid
         container
-        spacing={3}
-        sx={{ maxWidth: "1200px", margin: "auto" }}
+        spacing={4}
+        sx={{ maxWidth: "1100px", margin: "auto" }}
         justifyContent="center"
       >
-        {loading ? (
-          // Skeleton per le card
-          Array.from(new Array(6)).map((_, index) => (
-            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={index}>
-              <Skeleton variant="rounded" height={414} />
-            </Grid>
-          ))
-        ) : piante.length === 0 ? (
-          <Grid size={{ xs: 12 }}>
-            <Box sx={{ textAlign: "center", py: 6, color: "#888" }}>
-              Nessuna specie trovata per questo genere.
-            </Box>
-          </Grid>
-        ) : (
-          piante.map((p) => (
-            <Grid
-              size={{ xs: 12, sm: 6, md: 4 }}
-              key={p.id}
-              sx={{ display: "flex", justifyContent: "center" }}
-            >
-              <CardPianta
-                id={p.id}
-                specie={p.specie}
-                fotoUrl={p.fotoUrl || FALLBACK_IMAGE_URL}
-                onClick={() => navigate(`/pianta/${p.id}`)}
-              />
-            </Grid>
-          ))
-        )}
+        {isLoading
+          ? Array.from(new Array(6)).map((_, index) => (
+              <Grid key={index}>
+                <CardPiantaSkeleton />
+              </Grid>
+            ))
+          : piante.map((p) => {
+              return (
+                <Grid key={p.id}>
+                  <CardPianta
+                    pianta={p}
+                    onClick={() => navigate(`/pianta/${p.id}`)}
+                  />
+                </Grid>
+              );
+            })}
       </Grid>
     </Box>
   );

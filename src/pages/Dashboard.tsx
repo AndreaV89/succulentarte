@@ -34,12 +34,18 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import Tooltip from "@mui/material/Tooltip";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import LogoutIcon from "@mui/icons-material/Logout";
+import Avatar from "@mui/material/Avatar";
+import ImageIcon from "@mui/icons-material/Image";
+
+// Utils
+import { getResizedImageUrls } from "../utils/imageUtils";
 
 const storage = getStorage();
 interface Pianta {
   id: string;
   specie?: string;
   fotoUrls?: string[];
+  fotoCopertinaIndex?: number;
   famiglia?: string;
   famigliaId?: string;
   genere?: string;
@@ -104,6 +110,7 @@ const Dashboard = () => {
             famigliaId: data.famigliaId,
             genereId: data.genereId,
             fotoUrls: data.fotoUrls,
+            fotoCopertinaIndex: data.fotoCopertinaIndex,
             sinonimi: data.sinonimi,
             sottospecie: data.sottospecie,
             varieta: data.varieta,
@@ -270,7 +277,7 @@ const Dashboard = () => {
         mb: "50px",
         mx: "auto",
         width: "100%",
-        maxWidth: "1200px",
+        maxWidth: "1100px",
         p: { xs: 2, md: 4 },
       }}
     >
@@ -333,6 +340,9 @@ const Dashboard = () => {
             <Table>
               <TableHead>
                 <TableRow sx={{ background: "#f5f5f5" }}>
+                  <TableCell sx={{ width: "80px" }}>
+                    <b>Foto</b>
+                  </TableCell>
                   <TableCell>
                     <TableSortLabel
                       active={sortConfig.key === "specie"}
@@ -399,60 +409,74 @@ const Dashboard = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {sortedPiante.map((pianta) => (
-                  <TableRow key={pianta.id}>
-                    <TableCell>{pianta.specie || "-"}</TableCell>
-                    <TableCell>{pianta.famiglia || "-"}</TableCell>
-                    <TableCell>{pianta.genere || "-"}</TableCell>
-                    <TableCell>
-                      {pianta.updatedAt
-                        ? new Date(
-                            typeof pianta.updatedAt === "string"
-                              ? pianta.updatedAt
-                              : typeof pianta.updatedAt === "object" &&
-                                pianta.updatedAt !== null &&
-                                "seconds" in pianta.updatedAt
-                              ? (pianta.updatedAt as { seconds: number })
-                                  .seconds * 1000
-                              : ""
-                          ).toLocaleString("it-IT")
-                        : "-"}
-                    </TableCell>
-                    <TableCell align="right">
-                      <Tooltip title="Visualizza pianta">
-                        <IconButton
-                          color="secondary"
-                          sx={{ mr: 1 }}
-                          onClick={() => navigate(`/pianta/${pianta.id}`)}
+                {sortedPiante.map((pianta) => {
+                  const coverIndex = pianta.fotoCopertinaIndex ?? 0;
+                  const coverUrl = pianta.fotoUrls?.[coverIndex];
+                  const imageUrls = getResizedImageUrls(coverUrl);
+                  return (
+                    <TableRow key={pianta.id}>
+                      <TableCell>
+                        <Avatar
+                          variant="rounded"
+                          src={imageUrls.thumbnail}
+                          sx={{ width: 56, height: 56 }}
                         >
-                          <VisibilityIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Modifica pianta">
-                        <IconButton
-                          color="primary"
-                          sx={{ mr: 1 }}
-                          onClick={() =>
-                            navigate(`/dashboard/nuova/${pianta.id}`)
-                          }
-                        >
-                          <EditIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Elimina pianta">
-                        <IconButton
-                          color="error"
-                          onClick={() => {
-                            setDeleteId(pianta.id);
-                            setConfirmOpen(true);
-                          }}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Tooltip>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                          <ImageIcon />
+                        </Avatar>
+                      </TableCell>
+                      <TableCell>{pianta.specie || "-"}</TableCell>
+                      <TableCell>{pianta.famiglia || "-"}</TableCell>
+                      <TableCell>{pianta.genere || "-"}</TableCell>
+                      <TableCell>
+                        {pianta.updatedAt
+                          ? new Date(
+                              typeof pianta.updatedAt === "string"
+                                ? pianta.updatedAt
+                                : typeof pianta.updatedAt === "object" &&
+                                  pianta.updatedAt !== null &&
+                                  "seconds" in pianta.updatedAt
+                                ? (pianta.updatedAt as { seconds: number })
+                                    .seconds * 1000
+                                : ""
+                            ).toLocaleString("it-IT")
+                          : "-"}
+                      </TableCell>
+                      <TableCell align="right">
+                        <Tooltip title="Visualizza pianta">
+                          <IconButton
+                            color="secondary"
+                            sx={{ mr: 1 }}
+                            onClick={() => navigate(`/pianta/${pianta.id}`)}
+                          >
+                            <VisibilityIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Modifica pianta">
+                          <IconButton
+                            color="primary"
+                            sx={{ mr: 1 }}
+                            onClick={() =>
+                              navigate(`/dashboard/nuova/${pianta.id}`)
+                            }
+                          >
+                            <EditIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Elimina pianta">
+                          <IconButton
+                            color="error"
+                            onClick={() => {
+                              setDeleteId(pianta.id);
+                              setConfirmOpen(true);
+                            }}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>

@@ -1,12 +1,11 @@
 // React
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import Slider from "react-slick";
-import "slick-carousel/slick/slick.css";
-import "slick-carousel/slick/slick-theme.css";
 
 // Firebase
 import { doc, getDoc } from "firebase/firestore";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+import type { User } from "firebase/auth";
 import { db } from "../../firebaseConfig";
 
 // MUI
@@ -22,12 +21,14 @@ import Tooltip from "@mui/material/Tooltip";
 import Modal from "@mui/material/Modal";
 import IconButton from "@mui/material/IconButton";
 import CloseIcon from "@mui/icons-material/Close";
+import EditIcon from "@mui/icons-material/Edit";
 
 // Type
 import type { DataSingle } from "../types/general";
 
-// Fallback image
+// Utils
 import { FALLBACK_IMAGE_URL } from "../utils/constants";
+import { getResizedImageUrls } from "../utils/imageUtils";
 
 interface FamigliaInfo {
   id: string;
@@ -38,16 +39,34 @@ interface GenereInfo {
   nome: string;
 }
 
+type ProcessedImage = {
+  thumbnail: string;
+  medium: string;
+  large: string;
+  original: string;
+};
+
 const Pianta = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [pianta, setPianta] = useState<DataSingle | null>(null);
   const [famiglia, setFamiglia] = useState<FamigliaInfo | null>(null);
   const [genere, setGenere] = useState<GenereInfo | null>(null);
-
+  const [user, setUser] = useState<User | null>(null);
+  const [images, setImages] = useState<ProcessedImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (!id) {
@@ -71,6 +90,13 @@ const Pianta = () => {
           ...docSnap.data(),
         } as DataSingle;
         setPianta(piantaData);
+
+        if (piantaData.fotoUrls && Array.isArray(piantaData.fotoUrls)) {
+          const processedImages = piantaData.fotoUrls.map((url: string) =>
+            getResizedImageUrls(url)
+          );
+          setImages(processedImages);
+        }
 
         // 2. Se la pianta esiste, recupera i dati di famiglia e genere in parallelo
         if (piantaData.famigliaId && piantaData.genereId) {
@@ -148,30 +174,6 @@ const Pianta = () => {
       </Box>
     );
   }
-
-  // Lista per la galleria (media), con fallback alle originali
-  const galleryList =
-    pianta.fotoGalleryUrls && pianta.fotoGalleryUrls.length > 0
-      ? pianta.fotoGalleryUrls
-      : pianta.fotoUrls && pianta.fotoUrls.length > 0
-      ? pianta.fotoUrls
-      : [FALLBACK_IMAGE_URL];
-
-  // Lista per la galleria (catalogo), con fallback alle originali
-  const originalList =
-    pianta.fotoUrls && pianta.fotoUrls.length > 0
-      ? pianta.fotoUrls
-      : [FALLBACK_IMAGE_URL];
-
-  const sliderSettings = {
-    dots: originalList.length > 1,
-    infinite: true,
-    speed: 400,
-    slidesToShow: 1,
-    slidesToScroll: 1,
-    arrows: true,
-    adaptiveHeight: true,
-  };
 
   return (
     <Box
@@ -253,19 +255,32 @@ const Pianta = () => {
           <Typography color="text.primary">{pianta.specie}</Typography>
         </Breadcrumbs>
 
-        <Typography
-          variant="h2"
-          sx={{
-            fontWeight: 900,
-            mb: 1,
-            color: "#1a2a2a",
-            letterSpacing: "-1px",
-            fontSize: { xs: 32, md: 48 },
-            textShadow: "0 2px 8px rgba(0,0,0,0.06)",
-          }}
-        >
-          {`${genere?.nome || ""} ${pianta.specie}`}
-        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <Typography
+            variant="h2"
+            sx={{
+              fontWeight: 900,
+              mb: 1,
+              color: "#1a2a2a",
+              letterSpacing: "-1px",
+              fontSize: { xs: 32, md: 48 },
+              textShadow: "0 2px 8px rgba(0,0,0,0.06)",
+            }}
+          >
+            {`${genere?.nome || ""} ${pianta.specie}`}
+          </Typography>
+          {user && (
+            <Tooltip title="Modifica pianta">
+              <IconButton
+                aria-label="modifica pianta"
+                onClick={() => navigate(`/dashboard/nuova/${id}`)}
+                sx={{ mb: 1 }}
+              >
+                <EditIcon fontSize="large" />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Box>
         <Typography
           variant="h5"
           sx={{
@@ -297,7 +312,7 @@ const Pianta = () => {
             background: "#fff",
             borderRadius: 4,
             boxShadow: "0 2px 16px rgba(0,0,0,0.06)",
-            p: { xs: 2, md: 3 },
+            p: { xs: 3, md: 4 },
             display: "flex",
             flexDirection: "column",
             gap: "20px",
@@ -360,7 +375,7 @@ const Pianta = () => {
         </Box>
       </Box>
 
-      {pianta.fotoUrls && pianta.fotoUrls.length > 0 && (
+      {images.length > 0 && (
         <Box
           sx={{
             maxWidth: 1100,
@@ -373,26 +388,35 @@ const Pianta = () => {
             boxShadow: "0 2px 16px rgba(0,0,0,0.08)",
           }}
         >
-          <Slider {...sliderSettings}>
-            {galleryList.map((url, idx) => (
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 2, // Spazio tra le immagini
+              justifyContent: "center", // Centra le immagini
+            }}
+          >
+            {images.map((img, idx) => (
               <Box
                 key={idx}
                 sx={{
-                  width: "100%",
-                  height: { xs: 300, md: 550 },
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
+                  width: { xs: "100%", sm: 300, md: 350 }, // Larghezza reattiva
+                  height: { xs: 250, sm: 300, md: 350 }, // Altezza reattiva
                   overflow: "hidden",
                   borderRadius: 1,
                   boxShadow: 1,
                   background: "#e0e0e0",
                   cursor: "pointer",
+                  transition: "transform 0.2s, box-shadow 0.2s",
+                  "&:hover": {
+                    transform: "scale(1.03)",
+                    boxShadow: 6,
+                  },
                 }}
-                onClick={() => handleOpenModal(originalList[idx])}
+                onClick={() => handleOpenModal(img.large)}
               >
                 <img
-                  src={url}
+                  src={img.medium}
                   alt={`${pianta.specie || "Specie sconosciuta"} - foto ${
                     idx + 1
                   }`}
@@ -402,13 +426,11 @@ const Pianta = () => {
                     height: "100%",
                     objectFit: "cover",
                     objectPosition: "center",
-                    borderRadius: 8,
-                    transition: "all 0.3s",
                   }}
                 />
               </Box>
             ))}
-          </Slider>
+          </Box>
         </Box>
       )}
       <Modal

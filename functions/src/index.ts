@@ -1,51 +1,57 @@
-// functions/src/index.ts
+
 
 import * as functions from "firebase-functions";
 import * as nodemailer from "nodemailer";
-import cors from "cors";
+import  cors from "cors";
 
-// Abilita le richieste CORS
 const corsHandler = cors({origin: true});
-
-// Leggi le credenziali dalla configurazione sicura di Firebase
-const gmailEmail = functions.config().gmail.email;
-const gmailPassword = functions.config().gmail.password;
-
-const mailTransport = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: gmailEmail,
-    pass: gmailPassword,
-  },
-});
 
 export const sendContactMail = functions.https.onRequest((req, res) => {
   corsHandler(req, res, async () => {
-    if (req.method !== "POST") {
-      res.status(405).send("Method Not Allowed");
-      return;
-    }
-
-    const {nome, email, messaggio} = req.body;
-
-    if (!nome || !email || !messaggio) {
-      res.status(400).send("Dati mancanti.");
-      return;
-    }
-
-    const mailOptions = {
-      from: `"${nome}" <${gmailEmail}>`,
-      to: gmailEmail,
-      subject: `Nuovo messaggio da ${nome} su SucculentArte`,
-      html: `
-        <p><strong>Nome:</strong> ${nome}</p>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Messaggio:</strong></p>
-        <p>${messaggio}</p>
-      `,
-    };
-
     try {
+      // --- Blocco di inizializzazione spostato qui dentro ---
+      const gmailEmail = functions.config().gmail.email;
+      const gmailPassword = functions.config().gmail.password;
+
+      if (!gmailEmail || !gmailPassword) {
+        console.error("Credenziali Gmail non configurate.");
+        res.status(500).send("Errore di configurazione del server.");
+        return;
+      }
+
+      const mailTransport = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: gmailEmail,
+          pass: gmailPassword,
+        },
+      });
+      // --- Fine blocco di inizializzazione ---
+
+      if (req.method !== "POST") {
+        res.status(405).send("Method Not Allowed");
+        return;
+      }
+
+      const {nome, email, messaggio} = req.body;
+
+      if (!nome || !email || !messaggio) {
+        res.status(400).send("Dati mancanti.");
+        return;
+      }
+
+      const mailOptions = {
+        from: `"${nome}" <${gmailEmail}>`,
+        to: gmailEmail,
+        subject: `Nuovo messaggio da ${nome} su SucculentArte`,
+        html: `
+          <p><strong>Nome:</strong> ${nome}</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Messaggio:</strong></p>
+          <p>${messaggio}</p>
+        `,
+      };
+
       await mailTransport.sendMail(mailOptions);
       console.log("Email inviata con successo a:", gmailEmail);
       res.status(200).send("Messaggio inviato con successo!");

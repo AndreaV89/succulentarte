@@ -20,7 +20,7 @@ import EmailIcon from "@mui/icons-material/Email";
 // Utils
 import axios from "axios";
 
-const CLOUD_FUNCTION_URL = "URL_DELLA_TUA_FUNZIONE";
+const CLOUD_FUNCTION_URL = "https://sendcontactmail-puxlsugwjq-uc.a.run.app";
 
 const Contatti = () => {
   const [nome, setNome] = React.useState("");
@@ -40,7 +40,9 @@ const Contatti = () => {
       return;
     }
 
-    if (CLOUD_FUNCTION_URL === "URL_DELLA_TUA_FUNZIONE") {
+    if (
+      CLOUD_FUNCTION_URL === "https://sendcontactmail-puxlsugwjq-uc.a.run.app"
+    ) {
       setError("La funzione di invio non è ancora configurata.");
       return;
     }

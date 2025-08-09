@@ -17,6 +17,11 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import PhoneIcon from "@mui/icons-material/Phone";
 import EmailIcon from "@mui/icons-material/Email";
 
+// Utils
+import axios from "axios";
+
+const CLOUD_FUNCTION_URL = "URL_DELLA_TUA_FUNZIONE";
+
 const Contatti = () => {
   const [nome, setNome] = React.useState("");
   const [email, setEmail] = React.useState("");
@@ -25,22 +30,35 @@ const Contatti = () => {
   const [success, setSuccess] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
-  function handleClick(e: React.FormEvent) {
+  async function handleClick(e: React.FormEvent) {
     e.preventDefault();
+    setError(null);
+    setSuccess(null);
+
     if (!nome || !email || !messaggio) {
       setError("Per favore, compila tutti i campi.");
-      setTimeout(() => setError(null), 3000);
       return;
     }
+
+    if (CLOUD_FUNCTION_URL === "URL_DELLA_TUA_FUNZIONE") {
+      setError("La funzione di invio non è ancora configurata.");
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+
+    try {
+      await axios.post(CLOUD_FUNCTION_URL, { nome, email, messaggio });
       setSuccess("Messaggio inviato! Grazie per avermi contattato.");
       setNome("");
       setEmail("");
       setMessaggio("");
-      setTimeout(() => setSuccess(null), 4000);
-    }, 1500);
+    } catch (err) {
+      console.error("Errore chiamata funzione:", err);
+      setError("Impossibile inviare il messaggio. Riprova più tardi.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

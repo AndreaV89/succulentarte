@@ -5,7 +5,6 @@ import nodemailer from 'nodemailer';
 
 // Leggiamo le credenziali sicure dalle Variabili d'Ambiente di Vercel
 const { GMAIL_EMAIL, GMAIL_PASSWORD, TO_EMAIL } = process.env;
-console.log("ciao");
 
 
 
@@ -17,7 +16,8 @@ module.exports = async function handler(
   response.setHeader('Access-Control-Allow-Origin', 'https://www.succulentarte.com');
   response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
+  console.log("ciao");
+  
   // Gestisce la richiesta "preflight" del browser per il CORS
   if (request.method === 'OPTIONS') {
     return response.status(200).end();

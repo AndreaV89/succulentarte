@@ -21,7 +21,7 @@ import GenereCatalogo from "./pages/GenereCatalogo";
 import SitoInSviluppo from "./pages/SitoInSviluppo";
 
 function App() {
-  const inSviluppo = true;
+  const inSviluppo = false;
 
   return (
     <>
@@ -53,13 +53,13 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/contatti" element={<Contatti />} />
         {inSviluppo ? (
           <Route path="*" element={<SitoInSviluppo />} />
         ) : (
           <>
             <Route path="/" element={<Home />} />
             <Route path="/indice" element={<Indice />} />
-            <Route path="/contatti" element={<Contatti />} />
             <Route path="/pianta/:id" element={<Pianta />} />
             <Route
               path="/catalogo/famiglia/:famigliaId"

@@ -18,6 +18,10 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import PhoneIcon from "@mui/icons-material/Phone";
 import EmailIcon from "@mui/icons-material/Email";
 
+import axios from "axios";
+
+const PHP_SCRIPT_URL = "https://www.succulentarte.com/send_email.php";
+
 const Contatti = () => {
   const [nome, setNome] = React.useState("");
   const [email, setEmail] = React.useState("");
@@ -26,22 +30,35 @@ const Contatti = () => {
   const [success, setSuccess] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
-  function handleClick(e: React.FormEvent) {
+  async function handleClick(e: React.FormEvent) {
     e.preventDefault();
+    setError(null);
+    setSuccess(null);
+
     if (!nome || !email || !messaggio) {
       setError("Per favore, compila tutti i campi.");
-      setTimeout(() => setError(null), 3000);
       return;
     }
+
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+
+    try {
+      await axios.post(PHP_SCRIPT_URL, {
+        nome,
+        email,
+        messaggio,
+      });
+
       setSuccess("Messaggio inviato! Grazie per avermi contattato.");
       setNome("");
       setEmail("");
       setMessaggio("");
-      setTimeout(() => setSuccess(null), 4000);
-    }, 1500);
+    } catch (err) {
+      console.error("Errore chiamata script PHP:", err);
+      setError("Impossibile inviare il messaggio. Riprova più tardi.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

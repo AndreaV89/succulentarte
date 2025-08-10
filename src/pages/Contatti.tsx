@@ -19,7 +19,7 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import PhoneIcon from "@mui/icons-material/Phone";
 import EmailIcon from "@mui/icons-material/Email";
 
-const FUNCTION_URL = "/api/send-email.ts";
+const FUNCTION_URL = "/api/send-email";
 
 const Contatti = () => {
   const [nome, setNome] = React.useState("");

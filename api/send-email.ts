@@ -41,8 +41,8 @@ export default async function handler(request: VercelRequest,
     port: 465,
     secure: true,
     auth: {
-      user: ARUBA_EMAIL,
-      pass: EMAIL_PASSWORD,
+      user: "info@succulentarte.com",
+      pass: "uVgNbc*a.#BZ3cb",
     },
   });
 

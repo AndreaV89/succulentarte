@@ -1,8 +1,10 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import nodemailer from "nodemailer";
 
 const { ARUBA_EMAIL, EMAIL_PASSWORD, TO_EMAIL } = process.env;
 
-export default async function handler(request, response) {
+export default async function handler(request: VercelRequest,
+  response: VercelResponse,) {
   response.setHeader(
     "Access-Control-Allow-Origin",
     "https://www.succulentarte.com"

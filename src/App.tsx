@@ -61,6 +61,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/contatti" element={<Contatti />} />
         <Route
           path="/dashboard/nuova/:id?"
           element={
@@ -81,7 +82,7 @@ function App() {
           <>
             <Route path="/" element={<Home />} />
             <Route path="/indice" element={<Indice />} />
-            <Route path="/contatti" element={<Contatti />} />
+
             <Route path="/pianta/:id" element={<Pianta />} />
             <Route
               path="/catalogo/famiglia/:famigliaId"

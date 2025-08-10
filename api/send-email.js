@@ -1,12 +1,8 @@
-// api/send-email.ts
-
 import nodemailer from "nodemailer";
 
-// Leggiamo le credenziali sicure dalle Variabili d'Ambiente di Vercel
 const { GMAIL_EMAIL, GMAIL_PASSWORD, TO_EMAIL } = process.env;
 
 export default async function handler(request, response) {
-  // Imposta gli header per il CORS (permette al tuo sito di chiamare questa funzione)
   response.setHeader(
     "Access-Control-Allow-Origin",
     "https://www.succulentarte.com"
@@ -15,7 +11,6 @@ export default async function handler(request, response) {
   response.setHeader("Access-Control-Allow-Headers", "Content-Type");
   console.log("ciao");
 
-  // Gestisce la richiesta "preflight" del browser per il CORS
   if (request.method === "OPTIONS") {
     return response.status(200).end();
   }
@@ -39,19 +34,18 @@ export default async function handler(request, response) {
       .json({ message: "Errore di configurazione del server." });
   }
 
-  // Configura il trasporto di Nodemailer con le credenziali
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
       user: GMAIL_EMAIL,
-      pass: GMAIL_PASSWORD, // La password per le app di 16 cifre
+      pass: GMAIL_PASSWORD,
     },
   });
 
   try {
     await transporter.sendMail({
       from: `"${nome}" <${GMAIL_EMAIL}>`,
-      to: TO_EMAIL, // L'email dove vuoi ricevere i messaggi
+      to: TO_EMAIL,
       replyTo: email,
       subject: `Nuovo messaggio da ${nome} su SucculentArte`,
       html: `

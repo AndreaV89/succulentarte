@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import nodemailer from "nodemailer";
+console.log(process.env);
 
 const { ARUBA_EMAIL, EMAIL_PASSWORD, TO_EMAIL } = process.env;
 

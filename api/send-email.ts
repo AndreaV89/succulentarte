@@ -1,73 +1,71 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import nodemailer from "nodemailer";
-console.log(process.env);
 
-const { ARUBA_EMAIL, EMAIL_PASSWORD, TO_EMAIL } = process.env;
 
 export default async function handler(request: VercelRequest,
   response: VercelResponse,) {
-  response.setHeader(
-    "Access-Control-Allow-Origin",
-    "https://www.succulentarte.com"
-  );
-  response.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  response.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  console.log("ciao");
+      console.log("--- Funzione /api/send-email avviata ---");
+  console.log("Metodo della richiesta:", request.method);
 
-  if (request.method === "OPTIONS") {
+    const ARUBA_EMAIL = process.env.ARUBA_EMAIL;
+  const EMAIL_PASSWORD = process.env.EMAIL_PASSWORD;
+  const TO_EMAIL = process.env.TO_EMAIL;
+
+    console.log("Variabile GMAIL_EMAIL trovata:", !!ARUBA_EMAIL);
+  console.log("Variabile GMAIL_PASSWORD trovata:", EMAIL_PASSWORD ? 'Sì' : 'NO - MANCANTE!');
+  console.log("Variabile TO_EMAIL trovata:", !!TO_EMAIL);
+
+  response.setHeader('Access-Control-Allow-Origin', 'https://www.succulentarte.com');
+  response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (request.method === 'OPTIONS') {
+    console.log("Rispondo a richiesta OPTIONS (preflight).");
     return response.status(200).end();
+
+    
   }
 
-  if (request.method !== "POST") {
-    return response.status(405).json({ message: "Method Not Allowed" });
+    if (!ARUBA_EMAIL || !EMAIL_PASSWORD || !TO_EMAIL) {
+    console.error("ERRORE FATALE: Una o più variabili d'ambiente per l'email non sono state trovate.");
+    return response.status(500).json({ message: 'Errore critico di configurazione del server.' });
   }
 
-  const { nome, email, messaggio } = request.body;
-
-  if (!nome || !email || !messaggio) {
-    return response.status(400).json({ message: "Dati mancanti." });
+  if (request.method !== 'POST') {
+    return response.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  if (!ARUBA_EMAIL || !EMAIL_PASSWORD || !TO_EMAIL) {
-    console.error(
-      "Variabili d'ambiente per l'invio email non configurate su Vercel."
-    );
-    return response
-      .status(500)
-      .json({ message: "Errore di configurazione del server." });
+    const { nome, email, messaggio } = request.body;
+
+     if (!nome || !email || !messaggio) {
+    return response.status(400).json({ message: 'Dati mancanti nel corpo della richiesta.' });
   }
+
 
   const transporter = nodemailer.createTransport({
     host: "smtp.aruba.it",
     port: 465,
     secure: true,
     auth: {
-      user: "info@succulentarte.com",
-      pass: "uVgNbc*a.#BZ3cb",
+      user: ARUBA_EMAIL,
+      pass: EMAIL_PASSWORD,
     },
   });
 
   try {
+    console.log("Sto per inviare l'email...");
     await transporter.sendMail({
       from: `"${nome}" <${ARUBA_EMAIL}>`,
       to: TO_EMAIL,
       replyTo: email,
       subject: `Nuovo messaggio da ${nome} su SucculentArte`,
-      html: `
-        <p><strong>Nome:</strong> ${nome}</p>
-        <p><strong>Email del mittente:</strong> ${email}</p>
-        <p><strong>Messaggio:</strong></p>
-        <p>${messaggio.replace(/\n/g, "<br>")}</p>
-      `,
+      html: `<p><strong>Nome:</strong> ${nome}</p><p><strong>Email:</strong> ${email}</p><p><strong>Messaggio:</strong></p><p>${messaggio.replace(/\n/g, '<br>')}</p>`,
     });
 
-    return response
-      .status(200)
-      .json({ message: "Messaggio inviato con successo!" });
+    console.log("Email inviata con successo.");
+    return response.status(200).json({ message: 'Messaggio inviato con successo!' });
   } catch (error) {
-    console.error(error);
-    return response
-      .status(500)
-      .json({ message: "Errore durante l'invio dell'email." });
+    console.error("ERRORE NODEMAILER:", error);
+    return response.status(500).json({ message: 'Errore durante l\'invio dell\'email.' });
   }
 }

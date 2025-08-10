@@ -43,8 +43,8 @@ export default async function handler(request, response) {
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
-      user: "info@succulentarte.com",
-      pass: "wplfcqbocjiomhgv", // La password per le app di 16 cifre
+      user: GMAIL_EMAIL,
+      pass: GMAIL_PASSWORD, // La password per le app di 16 cifre
     },
   });
 

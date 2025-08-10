@@ -1,6 +1,9 @@
 // React
 import { Route, Routes } from "react-router-dom";
 
+// Hooks
+import { useAuth } from "./hooks/useAuth";
+
 // Components
 import ProtectedRoute from "./components/ProtectedRoute";
 import Header from "./components/Header";
@@ -19,9 +22,30 @@ import AggiungiCategoria from "./pages/AggiungiCategoria";
 import FamigliaCatalogo from "./pages/FamigliaCatalogo";
 import GenereCatalogo from "./pages/GenereCatalogo";
 import SitoInSviluppo from "./pages/SitoInSviluppo";
+import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
 
 function App() {
-  const inSviluppo = false;
+  const inSviluppo = true;
+
+  const { isLoggedIn, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  const mostraSitoCompleto = !inSviluppo || isLoggedIn;
 
   return (
     <>
@@ -53,9 +77,7 @@ function App() {
             </ProtectedRoute>
           }
         />
-        {inSviluppo ? (
-          <Route path="*" element={<SitoInSviluppo />} />
-        ) : (
+        {mostraSitoCompleto ? (
           <>
             <Route path="/" element={<Home />} />
             <Route path="/indice" element={<Indice />} />
@@ -69,12 +91,16 @@ function App() {
               path="/catalogo/genere/:genereId"
               element={<GenereCatalogo />}
             />
-
             <Route path="*" element={<NotFound />} />
+          </>
+        ) : (
+          <>
+            <Route path="*" element={<SitoInSviluppo />} />
           </>
         )}
       </Routes>
-      {!inSviluppo && <Footer />}
+
+      {mostraSitoCompleto && <Footer />}
     </>
   );
 }

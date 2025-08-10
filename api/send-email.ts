@@ -5,6 +5,8 @@ import nodemailer from 'nodemailer';
 
 // Leggiamo le credenziali sicure dalle Variabili d'Ambiente di Vercel
 const { GMAIL_EMAIL, GMAIL_PASSWORD, TO_EMAIL } = process.env;
+console.log(GMAIL_EMAIL, GMAIL_PASSWORD, TO_EMAIL);
+
 
 
 module.exports = async function handler(

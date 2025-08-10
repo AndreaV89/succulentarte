@@ -1,8 +1,9 @@
-// src/pages/Contatti.tsx
+// src/pages/Contatti.tsx con Debug
 
 import React from "react";
+import axios from "axios";
 
-// MUI
+// ... tutti gli altri import di MUI ...
 import Typography from "@mui/material/Typography";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
@@ -18,8 +19,6 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import PhoneIcon from "@mui/icons-material/Phone";
 import EmailIcon from "@mui/icons-material/Email";
 
-import axios from "axios";
-
 const PHP_SCRIPT_URL = "https://www.succulentarte.com/send_email.php";
 
 const Contatti = () => {
@@ -31,32 +30,39 @@ const Contatti = () => {
   const [error, setError] = React.useState<string | null>(null);
 
   async function handleClick(e: React.FormEvent) {
+    console.log("1. Funzione handleClick avviata."); // DEBUG
     e.preventDefault();
     setError(null);
     setSuccess(null);
 
     if (!nome || !email || !messaggio) {
+      console.log("2. Errore: Campi non compilati."); // DEBUG
       setError("Per favore, compila tutti i campi.");
       return;
     }
 
+    console.log("3. Dati validati, avvio caricamento..."); // DEBUG
     setLoading(true);
 
     try {
+      console.log("4. Sto per inviare la richiesta a:", PHP_SCRIPT_URL); // DEBUG
+
       await axios.post(PHP_SCRIPT_URL, {
         nome,
         email,
         messaggio,
       });
 
+      console.log("5. Richiesta inviata con successo!"); // DEBUG
       setSuccess("Messaggio inviato! Grazie per avermi contattato.");
       setNome("");
       setEmail("");
       setMessaggio("");
     } catch (err) {
-      console.error("Errore chiamata script PHP:", err);
+      console.error("6. Errore durante la chiamata axios:", err); // DEBUG
       setError("Impossibile inviare il messaggio. Riprova più tardi.");
     } finally {
+      console.log("7. Blocco finally eseguito."); // DEBUG
       setLoading(false);
     }
   }

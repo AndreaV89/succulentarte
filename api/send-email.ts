@@ -8,7 +8,7 @@ const { GMAIL_EMAIL, GMAIL_PASSWORD, TO_EMAIL } = process.env;
 
 
 
-module.exports = async function handler(
+export default async function handler(
   request: VercelRequest,
   response: VercelResponse,
 ) {

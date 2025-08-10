@@ -27,9 +27,9 @@ export default async function handler(
     return response.status(400).json({ message: 'Tutti i campi sono obbligatori.' });
   }
 
-  const { ARUBA_EMAIL, EMAIL_PASSWORD, TO_EMAIL } = process.env;
+  const { ARUBA_EMAIL, ARUBA_PASSWORD, TO_EMAIL } = process.env;
 
-  if (!ARUBA_EMAIL || !EMAIL_PASSWORD || !TO_EMAIL) {
+  if (!ARUBA_EMAIL || !ARUBA_PASSWORD || !TO_EMAIL) {
     console.error("Errore: Variabili d'ambiente non configurate correttamente.");
     return response.status(500).json({ message: 'Errore di configurazione del server.' });
   }
@@ -40,7 +40,7 @@ export default async function handler(
     secure: true, // true per la porta 465
     auth: {
       user: ARUBA_EMAIL,
-      pass: EMAIL_PASSWORD,
+      pass: ARUBA_PASSWORD,
     },
   });
 

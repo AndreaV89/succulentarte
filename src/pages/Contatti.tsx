@@ -19,7 +19,7 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import PhoneIcon from "@mui/icons-material/Phone";
 import EmailIcon from "@mui/icons-material/Email";
 
-//const FUNCTION_URL = "../../api/send-email";
+const FUNCTION_URL = "/api/send-email";
 
 const Contatti = () => {
   const [nome, setNome] = React.useState("");
@@ -42,7 +42,7 @@ const Contatti = () => {
     setLoading(true);
 
     try {
-      await axios.post("../../api/send-email", {
+      await axios.post(FUNCTION_URL, {
         nome,
         email,
         messaggio,

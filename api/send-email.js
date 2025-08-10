@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer";
 
-const { GMAIL_EMAIL, GMAIL_PASSWORD, TO_EMAIL } = process.env;
+const { ARUBA_EMAIL, EMAIL_PASSWORD, TO_EMAIL } = process.env;
 
 export default async function handler(request, response) {
   response.setHeader(
@@ -25,7 +25,7 @@ export default async function handler(request, response) {
     return response.status(400).json({ message: "Dati mancanti." });
   }
 
-  if (!GMAIL_EMAIL || !GMAIL_PASSWORD || !TO_EMAIL) {
+  if (!ARUBA_EMAIL || !EMAIL_PASSWORD || !TO_EMAIL) {
     console.error(
       "Variabili d'ambiente per l'invio email non configurate su Vercel."
     );
@@ -35,16 +35,18 @@ export default async function handler(request, response) {
   }
 
   const transporter = nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.aruba.it",
+    port: 465,
+    secure: true,
     auth: {
-      user: GMAIL_EMAIL,
-      pass: GMAIL_PASSWORD,
+      user: ARUBA_EMAIL,
+      pass: EMAIL_PASSWORD,
     },
   });
 
   try {
     await transporter.sendMail({
-      from: `"${nome}" <${GMAIL_EMAIL}>`,
+      from: `"${nome}" <${ARUBA_EMAIL}>`,
       to: TO_EMAIL,
       replyTo: email,
       subject: `Nuovo messaggio da ${nome} su SucculentArte`,

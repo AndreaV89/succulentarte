@@ -40,10 +40,9 @@ const Contatti = () => {
     }
 
     setLoading(true);
-    console.log(FUNCTION_URL);
 
     try {
-      await axios.post(FUNCTION_URL, {
+      await axios.post("../../api/send-email", {
         nome,
         email,
         messaggio,

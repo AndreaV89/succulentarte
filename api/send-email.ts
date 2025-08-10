@@ -35,20 +35,23 @@ export default async function handler(
   }
 
   const transporter = nodemailer.createTransport({
-    host: "smtp.aruba.it",
+    host: "smtps.aruba.it", // Modificato in smtps.aruba.it
     port: 465,
-    secure: true, // true per la porta 465
+    secure: true,
     auth: {
       user: ARUBA_EMAIL,
       pass: ARUBA_PASSWORD,
     },
+    tls: {
+      ciphers: 'SSLv3'
+    }
   });
 
-  try {
+ try {
     await transporter.sendMail({
-      from: `"${nome}" <${ARUBA_EMAIL}>`, // L'email "from" deve essere quella autenticata
+      from: `"${nome}" <${ARUBA_EMAIL}>`,
       to: TO_EMAIL,
-      replyTo: email, // L'email dell'utente va qui, così puoi rispondere direttamente
+      replyTo: email,
       subject: `Nuovo messaggio da ${nome} su SucculentArte`,
       html: `<p><strong>Nome:</strong> ${nome}</p><p><strong>Email:</strong> ${email}</p><p><strong>Messaggio:</strong></p><p>${messaggio.replace(/\n/g, '<br>')}</p>`,
     });
@@ -56,7 +59,6 @@ export default async function handler(
     return response.status(200).json({ message: 'Messaggio inviato con successo!' });
   } catch (error) {
     console.error("ERRORE NODEMAILER:", error);
-    // Fornisci un messaggio di errore più generico all'utente
     return response.status(500).json({ message: 'Errore durante l\'invio dell\'email.' });
   }
 }

@@ -42,6 +42,10 @@ export default async function handler(
       user: ARUBA_EMAIL,
       pass: ARUBA_PASSWORD,
     },
+      tls:{
+    minVersion: 'TLSv1',
+    ciphers:'HIGH:MEDIUM:!aNULL:!eNULL:@STRENGTH:!DH:!kEDH'
+  }
   });
 
  try {

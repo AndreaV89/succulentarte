@@ -42,9 +42,6 @@ export default async function handler(
       user: ARUBA_EMAIL,
       pass: ARUBA_PASSWORD,
     },
-    tls: {
-      ciphers: 'SSLv3'
-    }
   });
 
  try {

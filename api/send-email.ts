@@ -42,15 +42,14 @@ export default async function handler(
       user: ARUBA_EMAIL,
       pass: ARUBA_PASSWORD,
     },
-      tls:{
-    minVersion: 'TLSv1',
-    ciphers:'HIGH:MEDIUM:!aNULL:!eNULL:@STRENGTH:!DH:!kEDH'
-  }
+    tls: {
+      ciphers: 'SSLv3'
+    }
   });
 
  try {
     await transporter.sendMail({
-      from: ARUBA_EMAIL,
+      from: `"${nome}" <${ARUBA_EMAIL}>`,
       to: TO_EMAIL,
       replyTo: email,
       subject: `Nuovo messaggio da ${nome} su SucculentArte`,

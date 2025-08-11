@@ -35,7 +35,7 @@ export default async function handler(
   }
 
   const transporter = nodemailer.createTransport({
-    host: "smtps.aruba.it", // Modificato in smtps.aruba.it
+    host: "smtps.aruba.it",
     port: 465,
     secure: true,
     auth: {

@@ -267,8 +267,6 @@ const AggiungiPianta = () => {
         setTimeout(() => setSuccess(null), 2000);
       } else {
         const newData: Partial<PiantaFormData> = { ...piantaData };
-        newData.fotoUrls = undefined;
-        newData.fotoCopertinaIndex = undefined;
 
         const docRef = await addDoc(collection(db, "piante"), {
           ...newData,

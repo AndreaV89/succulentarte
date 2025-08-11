@@ -50,7 +50,7 @@ export default async function handler(
 
  try {
     await transporter.sendMail({
-      from: `"${nome}" <${ARUBA_EMAIL}>`,
+      from: ARUBA_EMAIL,
       to: TO_EMAIL,
       replyTo: email,
       subject: `Nuovo messaggio da ${nome} su SucculentArte`,

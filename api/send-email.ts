@@ -27,6 +27,7 @@ export default async function handler(
     return response.status(400).json({ message: 'Tutti i campi sono obbligatori.' });
   }
 
+
   const { ARUBA_EMAIL, ARUBA_PASSWORD, TO_EMAIL } = process.env;
 
   if (!ARUBA_EMAIL || !ARUBA_PASSWORD || !TO_EMAIL) {

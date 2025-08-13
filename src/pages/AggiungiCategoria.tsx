@@ -453,8 +453,8 @@ const AggiungiCategoria = () => {
         </Typography>
         {loading ? (
           <Typography>Caricamento...</Typography>
-        ) : famiglie.length && generi.length === 0 ? (
-          <Typography>Nessuna pianta trovata.</Typography>
+        ) : famiglie.length === 0 && generi.length === 0 ? (
+          <Typography>Nessuna categoria trovata.</Typography>
         ) : (
           <TableContainer component={Paper}>
             <Table aria-label="collapsible table">

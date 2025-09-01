@@ -70,7 +70,6 @@ const GenereCatalogo = () => {
   }, [genereId]);
 
   const isLoading = dataLoading || pianteLoading;
-  console.log(piante);
 
   return (
     <Box
@@ -116,7 +115,7 @@ const GenereCatalogo = () => {
             <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
               {genere.nome}
             </Typography>
-            <Typography sx={{ mb: 4, color: "#666" }}>
+            <Typography sx={{ mb: 4, color: "#666", whiteSpace: "pre-wrap" }}>
               {genere.descrizione || "Nessuna descrizione disponibile."}
             </Typography>
           </>

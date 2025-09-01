@@ -78,7 +78,7 @@ const Dashboard = () => {
   const [sortConfig, setSortConfig] = useState<{
     key: keyof Pianta;
     direction: "ascending" | "descending";
-  }>({ key: "updatedAt", direction: "descending" });
+  }>({ key: "specie", direction: "ascending" });
 
   // Carica le piante dal db
   useEffect(() => {

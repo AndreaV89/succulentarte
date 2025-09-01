@@ -255,7 +255,14 @@ const Pianta = () => {
           <Typography color="text.primary">{pianta.specie}</Typography>
         </Breadcrumbs>
 
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+            justifyContent: "center",
+          }}
+        >
           <Typography
             variant="h2"
             sx={{
@@ -289,6 +296,7 @@ const Pianta = () => {
             color: "#00b86b",
             fontSize: { xs: 20, md: 28 },
             letterSpacing: "0.5px",
+            textAlign: "center",
           }}
         >
           {`${famiglia?.nome || ""} ${genere?.nome || ""} ${pianta.specie} ${
@@ -296,13 +304,52 @@ const Pianta = () => {
           }`}
         </Typography>
         {pianta.sinonimi && (
-          <Typography sx={{ mb: 2, fontSize: 16, color: "#888" }}>
+          <Typography
+            sx={{ mb: 2, fontSize: 16, color: "#888", textAlign: "center" }}
+          >
             <InfoOutlinedIcon sx={{ fontSize: 18, mr: 1, mb: "-3px" }} />
             <b>Sinonimi:</b> {pianta.sinonimi}
           </Typography>
         )}
+        <Typography sx={{ textAlign: "center" }}>
+          <b>Famiglia:</b> {famiglia?.nome || "-"}
+        </Typography>
+        <Typography sx={{ textAlign: "center" }}>
+          <b>Genere:</b> {genere?.nome || "-"}
+        </Typography>
+        <Typography sx={{ textAlign: "center" }}>
+          <b>Specie:</b> {pianta.specie || "-"}
+        </Typography>
+        {pianta.sottospecie && (
+          <Typography sx={{ textAlign: "center" }}>
+            <b>Sottospecie:</b> {pianta.sottospecie}
+          </Typography>
+        )}
+        {pianta.varieta && (
+          <Typography sx={{ textAlign: "center" }}>
+            <b>Varietà:</b> {pianta.varieta}
+          </Typography>
+        )}
+        {pianta.forma && (
+          <Typography sx={{ textAlign: "center" }}>
+            <b>Forma:</b> {pianta.forma}
+          </Typography>
+        )}
+        {pianta.cultivar && (
+          <Typography sx={{ textAlign: "center" }}>
+            <b>Cultivar:</b> {pianta.cultivar}
+          </Typography>
+        )}
         {pianta.descrizione && (
-          <Typography sx={{ mb: 3, fontSize: 18, color: "#333" }}>
+          <Typography
+            sx={{
+              my: 3,
+              fontSize: 18,
+              color: "#333",
+              textAlign: "center",
+              whiteSpace: "pre-wrap",
+            }}
+          >
             {pianta.descrizione}
           </Typography>
         )}
@@ -318,35 +365,6 @@ const Pianta = () => {
             gap: "20px",
           }}
         >
-          <Typography>
-            <b>Famiglia:</b> {famiglia?.nome || "-"}
-          </Typography>
-          <Typography>
-            <b>Genere:</b> {genere?.nome || "-"}
-          </Typography>
-          <Typography>
-            <b>Specie:</b> {pianta.specie || "-"}
-          </Typography>
-          {pianta.sottospecie && (
-            <Typography>
-              <b>Sottospecie:</b> {pianta.sottospecie}
-            </Typography>
-          )}
-          {pianta.varieta && (
-            <Typography>
-              <b>Varietà:</b> {pianta.varieta}
-            </Typography>
-          )}
-          {pianta.forma && (
-            <Typography>
-              <b>Forma:</b> {pianta.forma}
-            </Typography>
-          )}
-          {pianta.cultivar && (
-            <Typography>
-              <b>Cultivar:</b> {pianta.cultivar}
-            </Typography>
-          )}
           {pianta.origine && (
             <Typography>
               <b>Origine:</b> {pianta.origine}

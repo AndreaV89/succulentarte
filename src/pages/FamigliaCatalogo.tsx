@@ -77,7 +77,7 @@ const FamigliaCatalogo = () => {
             <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
               {famiglia.nome}
             </Typography>
-            <Typography sx={{ mb: 4, color: "#666" }}>
+            <Typography sx={{ mb: 4, color: "#666", whiteSpace: "pre-wrap" }}>
               {famiglia.descrizione || "Nessuna descrizione disponibile."}
             </Typography>
           </>

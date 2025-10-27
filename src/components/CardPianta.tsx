@@ -56,6 +56,7 @@ const styles = {
 interface PiantaData {
   id: string;
   specie: string;
+  sottospecie?: string;
   fotoUrls?: string[];
   fotoCopertinaIndex?: number;
 }

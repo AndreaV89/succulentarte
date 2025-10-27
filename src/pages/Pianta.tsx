@@ -274,7 +274,11 @@ const Pianta = () => {
               textShadow: "0 2px 8px rgba(0,0,0,0.06)",
             }}
           >
-            {`${genere?.nome || ""} ${pianta.specie}`}
+            {`${genere?.nome || ""} ${pianta.specie} `}{" "}
+            {pianta.sottospecie ? `ssp. ${pianta.sottospecie}` : ``}{" "}
+            {pianta.varieta ? `var. ${pianta.varieta}` : ``}{" "}
+            {pianta.forma ? `fo. ${pianta.forma}` : ``}{" "}
+            {pianta.cultivar ? `cv. ${pianta.cultivar}` : ``}
           </Typography>
           {user && (
             <Tooltip title="Modifica pianta">
@@ -299,9 +303,12 @@ const Pianta = () => {
             textAlign: "center",
           }}
         >
-          {`${famiglia?.nome || ""} ${genere?.nome || ""} ${pianta.specie} ${
-            pianta.descrittorePianta || ""
-          }`}
+          {`${famiglia?.nome || ""} ${genere?.nome || ""} ${pianta.specie} `}{" "}
+          {pianta.sottospecie ? `ssp. ${pianta.sottospecie}` : ``}{" "}
+          {pianta.varieta ? `var. ${pianta.varieta}` : ``}{" "}
+          {pianta.forma ? `fo. ${pianta.forma}` : ``}{" "}
+          {pianta.cultivar ? `cv. ${pianta.cultivar}` : ``}
+          {`${pianta.descrittorePianta || ""}`}
         </Typography>
         {pianta.sinonimi && (
           <Typography

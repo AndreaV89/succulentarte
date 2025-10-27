@@ -74,7 +74,10 @@ const FamigliaCatalogo = () => {
               </Link>
               <Typography color="text.primary">{famiglia.nome}</Typography>
             </Breadcrumbs>
-            <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
+            <Typography
+              variant="h4"
+              sx={{ fontWeight: 700, mb: 2, textAlign: "center" }}
+            >
               {famiglia.nome}
             </Typography>
             <Typography

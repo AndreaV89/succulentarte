@@ -112,10 +112,20 @@ const GenereCatalogo = () => {
               </Link>
               <Typography color="text.primary">{genere.nome}</Typography>
             </Breadcrumbs>
-            <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
+            <Typography
+              variant="h4"
+              sx={{ fontWeight: 700, mb: 2, textAlign: "center" }}
+            >
               {genere.nome}
             </Typography>
-            <Typography sx={{ mb: 4, color: "#666", whiteSpace: "pre-wrap" }}>
+            <Typography
+              sx={{
+                mb: 4,
+                color: "#666",
+                whiteSpace: "pre-wrap",
+                textAlign: "center",
+              }}
+            >
               {genere.descrizione || "Nessuna descrizione disponibile."}
             </Typography>
           </>

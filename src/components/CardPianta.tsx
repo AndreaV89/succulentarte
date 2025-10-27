@@ -94,7 +94,7 @@ const CardPianta = ({ pianta, onClick }: CardPiantaProps) => {
             component="div"
             sx={styles.specieText}
           >
-            {pianta.specie}
+            {pianta.specie} {pianta.sottospecie}
           </Typography>
         </CardContent>
       </CardActionArea>

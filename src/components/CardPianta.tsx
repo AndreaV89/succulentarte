@@ -57,6 +57,9 @@ interface PiantaData {
   id: string;
   specie: string;
   sottospecie?: string;
+  varieta?: string;
+  forma?: string;
+  cultivar?: string;
   fotoUrls?: string[];
   fotoCopertinaIndex?: number;
 }
@@ -95,7 +98,11 @@ const CardPianta = ({ pianta, onClick }: CardPiantaProps) => {
             component="div"
             sx={styles.specieText}
           >
-            {pianta.specie} {pianta.sottospecie}
+            {pianta.specie}{" "}
+            {pianta.sottospecie ? `ssp. ${pianta.sottospecie}` : ``}{" "}
+            {pianta.varieta ? `var. ${pianta.varieta}` : ``}{" "}
+            {pianta.forma ? `fo. ${pianta.forma}` : ``}{" "}
+            {pianta.cultivar ? `cv. ${pianta.cultivar}` : ``}
           </Typography>
         </CardContent>
       </CardActionArea>
